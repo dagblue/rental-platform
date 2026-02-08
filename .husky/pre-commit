@@ -1,0 +1,18 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo "🔍 Running pre-commit checks..."
+
+# Check for uncommitted migrations
+if ls packages/database/prisma/migrations/*/migration.sql 1> /dev/null 2>&1; then
+  echo "⚠️  Found uncommitted database migrations!"
+  echo "   Please commit your migrations before proceeding."
+  exit 1
+fi
+
+# Run lint-staged
+npx lint-staged
+
+# Type check
+echo "🔧 Running type checks..."
+npm run type-check --if-present

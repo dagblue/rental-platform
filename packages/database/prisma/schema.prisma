@@ -1,0 +1,1135 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/client"
+  previewFeatures = ["fullTextIndex"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+// ============= ENUMS =============
+
+enum UserRole {
+  RENTER
+  OWNER
+  AGENT
+  ADMIN
+  SUPPORT
+  MODERATOR
+}
+
+enum TrustLevel {
+  NEW
+  BASIC
+  VERIFIED
+  TRUSTED
+}
+
+enum VerificationStatus {
+  PENDING
+  PARTIAL
+  COMPLETE
+}
+
+enum VerificationType {
+  PHONE
+  EMAIL
+  ID_CARD
+  PASSPORT
+  DRIVING_LICENSE
+  ADDRESS
+  PHYSICAL
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  BANNED
+  DELETED
+}
+
+enum ListingStatus {
+  DRAFT
+  PENDING_REVIEW
+  ACTIVE
+  INACTIVE
+  RENTED
+  MAINTENANCE
+  BANNED
+  DELETED
+}
+
+enum ItemCondition {
+  NEW
+  LIKE_NEW
+  EXCELLENT
+  GOOD
+  FAIR
+  POOR
+  NEEDS_REPAIR
+}
+
+enum AvailabilityType {
+  INSTANT
+  ADVANCE_BOOKING
+  CALENDAR
+  REQUEST
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  DISPUTED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PaymentMethod {
+  MOBILE_MONEY
+  CASH
+  BANK_TRANSFER
+  CARD
+}
+
+enum MobileMoneyProvider {
+  M_PESA
+  TELEBIRR
+  CBE_BIRR
+  HELLO_CASH
+  AMOLE
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  CLOSED
+  ESCALATED
+}
+
+enum DisputeOutcome {
+  IN_FAVOR_OF_RENTER
+  IN_FAVOR_OF_OWNER
+  PARTIAL_REFUND
+  FULL_REFUND
+  NO_ACTION
+}
+
+enum NotificationType {
+  BOOKING_REQUEST
+  BOOKING_CONFIRMED
+  BOOKING_CANCELLED
+  PAYMENT_RECEIVED
+  PAYMENT_REFUNDED
+  TRUST_LEVEL_UP
+  VERIFICATION_APPROVED
+  NEW_REVIEW
+  DISPUTE_OPENED
+  DISPUTE_RESOLVED
+  MESSAGE_RECEIVED
+  SYSTEM_ANNOUNCEMENT
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  PUSH
+  IN_APP
+}
+
+// ============= MODELS =============
+
+model User {
+  id                  String              @id @default(uuid())
+  phone               String              @unique
+  email               String?             @unique
+  firstName           String
+  lastName            String
+  passwordHash        String?
+  
+  // Profile
+  profileImage        String?
+  dateOfBirth         DateTime?
+  gender              String?
+  
+  // Ethiopian Identity
+  governmentId        String?
+  governmentIdType    String?
+  
+  // Roles & Trust
+  role                UserRole            @default(RENTER)
+  trustLevel          TrustLevel          @default(NEW)
+  trustScore          Int                 @default(0)
+  verificationStatus  VerificationStatus  @default(PENDING)
+  
+  // Verification Flags
+  phoneVerified       Boolean             @default(false)
+  emailVerified       Boolean             @default(false)
+  idVerified          Boolean             @default(false)
+  addressVerified     Boolean             @default(false)
+  physicalVerified    Boolean             @default(false)
+  verificationDate    DateTime?
+  
+  // Status
+  status              UserStatus          @default(ACTIVE)
+  isSuspended         Boolean             @default(false)
+  suspensionReason    String?
+  suspensionEndsAt    DateTime?
+  
+  // Economic Metrics
+  totalTransactions   Int                 @default(0)
+  totalSpent          Float               @default(0)
+  totalEarned         Float               @default(0)
+  averageRating       Float               @default(0)
+  responseRate        Float               @default(0)
+  cancellationRate    Float               @default(0)
+  
+  // Social
+  guarantorCount      Int                 @default(0)
+  
+  // Timestamps
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  lastLogin           DateTime?
+  lastActive          DateTime?
+  agreedToTerms       Boolean             @default(false)
+  agreedToTermsAt     DateTime?
+  marketingOptIn      Boolean             @default(true)
+  
+  // Relations
+  profile             UserProfile?
+  guarantors          Guarantor[]         @relation("UserGuarantors")
+  guarantorFor        Guarantor[]         @relation("GuarantorFor")
+  verifications       Verification[]
+  trustLogs           TrustLog[]
+  listings            Listing[]
+  bookingsAsRenter    Booking[]           @relation("RenterBookings")
+  bookingsAsOwner     Booking[]           @relation("OwnerBookings")
+  reviewsGiven        Review[]            @relation("Reviewer")
+  reviewsReceived     Review[]            @relation("Reviewee")
+  messagesSent        Message[]           @relation("Sender")
+  messagesReceived    Message[]           @relation("Receiver")
+  wallet              Wallet?
+  transactions        Transaction[]
+  disputes            Dispute[]           @relation("DisputeOpener")
+  disputesAgainst     Dispute[]           @relation("DisputeDefendant")
+  notifications       Notification[]
+  payments            Payment[]           @relation("PaymentUser")
+  bookingGuarantors   BookingGuarantor[]  @relation("GuarantorBookings")
+  agentVerifications  AgentVerification[] @relation("AgentVerificationUser")
+  disputeMessages     DisputeMessage[]    @relation("DisputeMessageUser")
+  agent               Agent?              @relation("AgentUser")
+  
+  @@index([phone])
+  @@index([email])
+  @@index([trustLevel])
+  @@index([verificationStatus])
+  @@index([createdAt])
+  @@index([role])
+  @@index([status])
+  // @@fulltext([firstName, lastName, phone]) // Temporarily disabled
+}
+
+model UserProfile {
+  id                  String    @id @default(uuid())
+  userId              String    @unique
+  
+  // Bio & Details
+  bio                 String?
+  languages           String[]
+  occupation          String?
+  education           String?
+  skills              String[]
+  
+  // Ethiopian Address
+  region              String
+  zone                String?
+  woreda              String
+  kebele              String
+  city                String
+  subcity             String?
+  houseNumber         String
+  landmark            String?
+  latitude            Float?
+  longitude           Float?
+  formattedAddress    String
+  
+  // Contact
+  secondaryPhone      String?
+  emergencyContact    Json?     // {name, phone, relationship}
+  
+  // Social Links
+  facebook            String?
+  telegram            String?
+  linkedin            String?
+  twitter             String?
+  instagram           String?
+  
+  // Preferences (JSON)
+  preferences         Json?
+  
+  // Metadata
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  
+  // Relations
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Verification {
+  id                  String            @id @default(uuid())
+  userId              String
+  type                VerificationType
+  
+  // Status
+  status              String            @default("PENDING") // PENDING, VERIFIED, REJECTED, EXPIRED
+  rejectionReason     String?
+  
+  // Documents
+  documentFront       String?
+  documentBack        String?
+  selfieWithDocument  String?
+  
+  // Data
+  documentNumber      String?
+  documentExpiry      DateTime?
+  issuingAuthority    String?
+  issuedDate          DateTime?
+  
+  // Address Verification
+  utilityBill         String?
+  leaseAgreement      String?
+  otherProof          String?
+  
+  // Physical Verification
+  verifiedBy          String?           // Agent ID
+  verificationLocation String?
+  verificationNotes   String?
+  
+  // Metadata
+  submittedAt         DateTime          @default(now())
+  verifiedAt          DateTime?
+  expiresAt          DateTime?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  
+  // Relations
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@index([submittedAt])
+}
+
+model Guarantor {
+  id                  String    @id @default(uuid())
+  userId              String
+  guarantorId         String
+  
+  // Relationship
+  relationship        String    // FAMILY, FRIEND, COLLEAGUE, NEIGHBOR, RELATIVE, OTHER
+  relationshipDuration Int?     // in months
+  relationshipDescription String?
+  
+  // Status
+  status              String    @default("PENDING") // PENDING, CONFIRMED, DENIED, EXPIRED, REVOKED
+  confirmationCode    String
+  confirmationMethod  String?   // SMS, CALL, IN_PERSON, OTHER
+  
+  // Limits
+  maxGuaranteeAmount  Float     @default(50000)
+  currentGuaranteeAmount Float  @default(0)
+  
+  // Metadata
+  requestedAt         DateTime  @default(now())
+  confirmedAt         DateTime?
+  expiresAt           DateTime  @default(now())
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  notes               String?
+  isActive            Boolean   @default(true)
+  
+  // Relations
+  user                User      @relation("UserGuarantors", fields: [userId], references: [id], onDelete: Cascade)
+  guarantor           User      @relation("GuarantorFor", fields: [guarantorId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, guarantorId])
+  @@index([userId])
+  @@index([guarantorId])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+model TrustLog {
+  id                  String    @id @default(uuid())
+  userId              String
+  
+  // Changes
+  oldLevel            TrustLevel
+  newLevel            TrustLevel
+  oldScore            Int
+  newScore            Int
+  scoreDelta          Int
+  
+  // Reason
+  reason              String    // AUTOMATIC_UPDATE, MANUAL_ADJUSTMENT, VERIFICATION, TRANSACTION, REVIEW, DISPUTE, PENALTY, OTHER
+  reasonDetails       String?
+  
+  // Trigger
+  triggeredBy         String    // SYSTEM, ADMIN, USER, AGENT
+  triggeredById       String?
+  
+  // Metadata
+  metadata            Json?
+  createdAt           DateTime  @default(now())
+  
+  // Relations
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([createdAt])
+  @@index([reason])
+}
+
+model Category {
+  id                  String    @id @default(uuid())
+  name                String
+  slug                String    @unique
+  description         String?
+  icon                String?
+  
+  // Category-specific rules
+  minDepositMultiplier Float    @default(1.5)
+  maxDepositMultiplier Float    @default(3.0)
+  requiresVerification Boolean  @default(false)
+  insuranceRequired    Boolean  @default(false)
+  specialRequirements  Json?
+  
+  // Metadata
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  
+  // Relations
+  listings            Listing[]
+  
+  @@index([slug])
+  @@index([name])
+}
+
+model Listing {
+  id                  String          @id @default(uuid())
+  ownerId             String
+  categoryId          String
+  
+  // Basic Info
+  title               String
+  slug                String          @unique
+  description         String
+  shortDescription    String?
+  
+  // Pricing
+  pricePerDay         Float
+  pricePerWeek        Float?
+  pricePerMonth       Float?
+  currency            String          @default("ETB")
+  minimumRentalDays   Int             @default(1)
+  maximumRentalDays   Int             @default(365)
+  discountWeekly      Float           @default(10)    // Percentage
+  discountMonthly     Float           @default(20)    // Percentage
+  
+  // Location
+  locationRegion      String
+  locationCity        String
+  locationSubcity     String?
+  locationWoreda      String?
+  locationKebele      String?
+  latitude            Float?
+  longitude           Float?
+  locationFormatted   String
+  isExactLocation     Boolean         @default(false)
+  
+  // Item Details
+  condition           ItemCondition   @default(GOOD)
+  yearOfManufacture   Int?
+  brand               String?
+  model               String?
+  specifications      Json?
+  
+  // Availability
+  availabilityType    AvailabilityType @default(CALENDAR)
+  advanceNoticeHours  Int             @default(24)
+  sameDayBooking      Boolean         @default(false)
+  instantBooking      Boolean         @default(false)
+  
+  // Trust Requirements
+  minTrustLevel       TrustLevel      @default(NEW)
+  requiresGuarantors  Int             @default(0)
+  requiresPhysicalVerification Boolean @default(false)
+  requiresIdVerification Boolean      @default(false)
+  requiresDeposit     Boolean         @default(true)
+  
+  // Insurance
+  insuranceIncluded   Boolean         @default(false)
+  insuranceDetails    Json?
+  insuranceProvider   String?
+  insurancePremium    Float?
+  
+  // Delivery
+  deliveryAvailable   Boolean         @default(false)
+  deliveryFee         Float?
+  deliveryRadius      Float?          // in kilometers
+  pickupRequired      Boolean         @default(true)
+  pickupLocation      String?
+  
+  // Rules
+  rules               String[]
+  cancellationPolicy  Json?           // {type, description, refundPercentage, gracePeriodHours}
+  damagePolicy        Json?           // {depositRequired, depositAmount, wearAndTear, damageCategories}
+  
+  // Status
+  status              ListingStatus   @default(DRAFT)
+  isFeatured          Boolean         @default(false)
+  isVerified          Boolean         @default(false)
+  verificationDate    DateTime?
+  rejectionReason     String?
+  
+  // Statistics
+  views               Int             @default(0)
+  saves               Int             @default(0)
+  bookingsCount       Int             @default(0)
+  averageRating       Float           @default(0)
+  responseRate        Float           @default(0)
+  responseTime        Int?            // in minutes
+  
+  // Timestamps
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  publishedAt         DateTime?
+  lastBookedAt        DateTime?
+  
+  // Relations
+  owner               User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  category            Category        @relation(fields: [categoryId], references: [id])
+  bookings            Booking[]
+  listingImages       ListingImage[]
+  listingVideos       ListingVideo[]
+  listingDocuments    ListingDocument[]
+  availabilitySlots   AvailabilitySlot[]
+  reviews             Review[]        @relation("ListingReviews")
+  
+  @@index([ownerId])
+  @@index([categoryId])
+  @@index([status])
+  @@index([pricePerDay])
+  @@index([locationCity])
+  @@index([createdAt])
+  @@index([isFeatured])
+  // @@fulltext([title, description, shortDescription]) // Temporarily disabled
+}
+
+model ListingImage {
+  id                  String    @id @default(uuid())
+  listingId           String
+  url                 String
+  thumbnailUrl        String?
+  isPrimary           Boolean   @default(false)
+  caption             String?
+  order               Int       @default(0)
+  verified            Boolean   @default(false)
+  metadata            Json?     // {width, height, size, format}
+  
+  createdAt           DateTime  @default(now())
+  
+  listing             Listing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  
+  @@index([listingId])
+  @@index([isPrimary])
+}
+
+model ListingVideo {
+  id                  String    @id @default(uuid())
+  listingId           String
+  url                 String
+  thumbnailUrl        String?
+  duration            Int?      // in seconds
+  caption             String?
+  order               Int       @default(0)
+  
+  createdAt           DateTime  @default(now())
+  
+  listing             Listing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  
+  @@index([listingId])
+}
+
+model ListingDocument {
+  id                  String    @id @default(uuid())
+  listingId           String
+  type                String    // MANUAL, INVOICE, CERTIFICATE, INSURANCE, OTHER
+  title               String
+  url                 String
+  verified            Boolean   @default(false)
+  verifiedAt          DateTime?
+  
+  createdAt           DateTime  @default(now())
+  
+  listing             Listing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  
+  @@index([listingId])
+  @@index([type])
+}
+
+model AvailabilitySlot {
+  id                  String    @id @default(uuid())
+  listingId           String
+  date                DateTime
+  available           Boolean   @default(true)
+  price               Float?    // Custom price for this date
+  notes               String?
+  blockedBy           String?   // Booking ID if blocked
+  
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  
+  listing             Listing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  
+  @@unique([listingId, date])
+  @@index([listingId])
+  @@index([date])
+  @@index([available])
+}
+
+model Booking {
+  id                  String        @id @default(uuid())
+  listingId           String
+  renterId            String
+  ownerId             String
+  
+  // Booking Code
+  bookingCode         String        @unique
+  
+  // Dates
+  startDate           DateTime
+  endDate             DateTime
+  totalDays           Int
+  
+  // Pricing
+  dailyRate           Float
+  totalAmount         Float
+  depositAmount       Float
+  platformFee         Float
+  insuranceFee        Float?
+  deliveryFee         Float?
+  
+  // Payment
+  paymentStatus       PaymentStatus @default(PENDING)
+  paymentMethod       PaymentMethod?
+  paymentProvider     String?       // M_PESA, TELEBIRR, etc.
+  paymentReference    String?
+  
+  // Status
+  status              BookingStatus @default(PENDING)
+  cancellationReason  String?
+  
+  // Trust & Verification
+  renterTrustLevel    TrustLevel
+  guarantorsRequired  Int           @default(0)
+  guarantorsConfirmed Int           @default(0)
+  physicalVerificationRequired Boolean @default(false)
+  physicalVerificationCompleted Boolean @default(false)
+  
+  // Logistics
+  pickupLocation      String?
+  deliveryLocation    String?
+  handoverNotes       String?
+  returnNotes         String?
+  
+  // Timestamps
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  confirmedAt         DateTime?
+  cancelledAt         DateTime?
+  startedAt           DateTime?
+  completedAt         DateTime?
+  
+  // Relations
+  listing             Listing       @relation(fields: [listingId], references: [id])
+  renter              User          @relation("RenterBookings", fields: [renterId], references: [id])
+  owner               User          @relation("OwnerBookings", fields: [ownerId], references: [id])
+  payments            Payment[]
+  reviews             Review[]
+  dispute             Dispute?
+  bookingGuarantors   BookingGuarantor[]
+  messages            Message[]
+  
+  @@index([listingId])
+  @@index([renterId])
+  @@index([ownerId])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([createdAt])
+  @@index([bookingCode])
+}
+
+model BookingGuarantor {
+  id                  String    @id @default(uuid())
+  bookingId           String
+  guarantorId         String    // User ID of guarantor
+  status              String    @default("PENDING") // PENDING, CONFIRMED, DENIED
+  confirmationCode    String
+  confirmedAt         DateTime?
+  notifiedAt          DateTime?
+  
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  
+  booking             Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  guarantor           User      @relation("GuarantorBookings", fields: [guarantorId], references: [id])
+  
+  @@unique([bookingId, guarantorId])
+  @@index([bookingId])
+  @@index([guarantorId])
+  @@index([status])
+}
+
+model Payment {
+  id                  String        @id @default(uuid())
+  bookingId           String
+  userId              String
+  
+  // Amounts
+  amount              Float
+  currency            String        @default("ETB")
+  fee                 Float         @default(0)
+  netAmount           Float
+  
+  // Method Details
+  method              PaymentMethod
+  provider            String?       // M_PESA, TELEBIRR, etc.
+  transactionId       String?
+  reference           String?
+  
+  // Escrow
+  isEscrow            Boolean       @default(true)
+  escrowReleaseDate   DateTime?
+  
+  // Status
+  status              PaymentStatus @default(PENDING)
+  failureReason       String?
+  
+  // Metadata
+  metadata            Json?         // Raw response from payment provider
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  completedAt         DateTime?
+  
+  // Relations
+  booking             Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  user                User          @relation("PaymentUser", fields: [userId], references: [id])
+  
+  @@index([bookingId])
+  @@index([userId])
+  @@index([status])
+  @@index([method])
+  @@index([transactionId])
+  @@index([createdAt])
+}
+
+model Wallet {
+  id                  String    @id @default(uuid())
+  userId              String    @unique
+  
+  // Balances
+  availableBalance    Float     @default(0)
+  pendingBalance      Float     @default(0)
+  escrowBalance       Float     @default(0)
+  
+  // Withdrawal
+  withdrawalThreshold Float     @default(1000) // Minimum amount for withdrawal
+  autoWithdrawal      Boolean   @default(false)
+  preferredMethod     PaymentMethod?
+  preferredProvider   String?
+  
+  // Statistics
+  totalDeposits       Float     @default(0)
+  totalWithdrawals    Float     @default(0)
+  totalEarnings       Float     @default(0)
+  
+  // Timestamps
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  lastWithdrawalAt    DateTime?
+  
+  // Relations
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions        Transaction[]
+  
+  @@index([userId])
+}
+
+model Transaction {
+  id                  String        @id @default(uuid())
+  walletId            String
+  userId              String
+  
+  // Transaction Details
+  type                String        // DEPOSIT, WITHDRAWAL, EARNING, REFUND, FEE, ESCROW_HOLD, ESCROW_RELEASE
+  amount              Float
+  currency            String        @default("ETB")
+  
+  // Reference
+  referenceId         String?       // Booking ID, Payment ID, etc.
+  referenceType       String?       // BOOKING, WITHDRAWAL, etc.
+  
+  // Status
+  status              String        @default("PENDING") // PENDING, COMPLETED, FAILED, CANCELLED
+  failureReason       String?
+  
+  // Metadata
+  description         String?
+  metadata            Json?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  completedAt         DateTime?
+  
+  // Relations
+  wallet              Wallet        @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  user                User          @relation(fields: [userId], references: [id])
+  
+  @@index([walletId])
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+  @@index([referenceId])
+}
+
+model Review {
+  id                  String    @id @default(uuid())
+  bookingId           String
+  reviewerId          String
+  revieweeId          String
+  listingId           String?   // Added field
+  
+  // Role
+  role                String    // RENTER or OWNER
+  
+  // Ratings (1-5)
+  rating              Float
+  communication       Float?
+  reliability         Float?
+  itemCondition       Float?
+  valueForMoney       Float?
+  
+  // Content
+  title               String?
+  comment             String?
+  isPublic            Boolean   @default(true)
+  ownerResponse       String?
+  ownerRespondedAt    DateTime?
+  
+  // Status
+  status              String    @default("ACTIVE") // ACTIVE, HIDDEN, DELETED
+  
+  // Metadata
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  
+  // Relations
+  booking             Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  reviewer            User      @relation("Reviewer", fields: [reviewerId], references: [id])
+  reviewee            User      @relation("Reviewee", fields: [revieweeId], references: [id])
+  listing             Listing?  @relation("ListingReviews", fields: [listingId], references: [id])
+  
+  @@unique([bookingId, reviewerId])
+  @@index([bookingId])
+  @@index([reviewerId])
+  @@index([revieweeId])
+  @@index([rating])
+  @@index([createdAt])
+}
+
+model Dispute {
+  id                  String        @id @default(uuid())
+  bookingId           String        @unique
+  openedBy            String        // User ID
+  against             String        // User ID
+  
+  // Details
+  type                String        // DAMAGE, NON_DELIVERY, LATE_RETURN, QUALITY_ISSUE, OTHER
+  title               String
+  description         String
+  
+  // Status
+  status              DisputeStatus @default(OPEN)
+  outcome             DisputeOutcome?
+  resolutionAmount    Float?
+  
+  // Evidence
+  evidence            Json?         // Array of evidence objects
+  resolutionNotes     String?
+  
+  // Timestamps
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  resolvedAt          DateTime?
+  escalatedAt         DateTime?
+  closedAt            DateTime?
+  
+  // Relations
+  booking             Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  opener              User          @relation("DisputeOpener", fields: [openedBy], references: [id])
+  defendant           User          @relation("DisputeDefendant", fields: [against], references: [id])
+  disputeMessages     DisputeMessage[]
+  
+  @@index([bookingId])
+  @@index([openedBy])
+  @@index([against])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model DisputeMessage {
+  id                  String    @id @default(uuid())
+  disputeId           String
+  userId              String
+  content             String
+  isInternal          Boolean   @default(false) // For platform staff only
+  
+  // Attachments
+  attachments         String[]
+  
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  
+  dispute             Dispute   @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+  user                User      @relation("DisputeMessageUser", fields: [userId], references: [id])
+  
+  @@index([disputeId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model Message {
+  id                  String    @id @default(uuid())
+  senderId            String
+  receiverId          String
+  bookingId           String?   // Added ? to make it optional
+  
+  // Content
+  content             String
+  messageType         String    @default("TEXT") // TEXT, IMAGE, DOCUMENT, SYSTEM
+  attachments         String[]
+  
+  // Status
+  isRead              Boolean   @default(false)
+  readAt              DateTime?
+  
+  // Metadata
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  
+  // Relations
+  sender              User      @relation("Sender", fields: [senderId], references: [id])
+  receiver            User      @relation("Receiver", fields: [receiverId], references: [id])
+  booking             Booking?  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([bookingId])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+model Notification {
+  id                  String            @id @default(uuid())
+  userId              String
+  
+  // Content
+  type                NotificationType
+  title               String
+  message             String
+  data                Json?             // Additional data
+  
+  // Channels
+  channels            NotificationChannel[]
+  emailSent           Boolean           @default(false)
+  smsSent             Boolean           @default(false)
+  pushSent            Boolean           @default(false)
+  inAppSent           Boolean           @default(true)
+  
+  // Status
+  isRead              Boolean           @default(false)
+  readAt              DateTime?
+  
+  // Metadata
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  scheduledFor        DateTime?         // For scheduled notifications
+  
+  // Relations
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([type])
+  @@index([isRead])
+  @@index([createdAt])
+  @@index([scheduledFor])
+}
+
+model Agent {
+  id                  String    @id @default(uuid())
+  userId              String    @unique
+  
+  // Agent Details
+  agentCode           String    @unique
+  type                String    // INDIVIDUAL, BUSINESS
+  businessName        String?
+  businessLicense     String?
+  taxId               String?
+  
+  // Location
+  operatingRegion     String
+  operatingCity       String
+  address             String
+  latitude            Float?
+  longitude           Float?
+  
+  // Services
+  services            String[]  // VERIFICATION, CASH_COLLECTION, DELIVERY, DISPUTE_MEDIATION
+  serviceRadius       Float?    // in kilometers
+  
+  // Performance
+  totalTransactions   Int       @default(0)
+  totalCommission     Float     @default(0)
+  averageRating       Float     @default(0)
+  completionRate      Float     @default(0)
+  
+  // Status
+  status              String    @default("PENDING") // PENDING, ACTIVE, SUSPENDED, INACTIVE
+  approvalDate        DateTime?
+  suspensionReason    String?
+  
+  // Commission
+  commissionRate      Float     @default(0.02) // 2% default
+  
+  // Timestamps
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  
+  // Relations
+  user                User      @relation("AgentUser", fields: [userId], references: [id], onDelete: Cascade)
+  agentTransactions   AgentTransaction[]
+  agentVerifications  AgentVerification[]
+  
+  @@index([userId])
+  @@index([agentCode])
+  @@index([operatingCity])
+  @@index([status])
+}
+
+model AgentTransaction {
+  id                  String    @id @default(uuid())
+  agentId             String
+  type                String    // CASH_COLLECTION, VERIFICATION, DELIVERY
+  amount              Float
+  commission          Float
+  referenceId         String    // Booking ID, Payment ID, etc.
+  referenceType       String
+  
+  // Status
+  status              String    @default("PENDING") // PENDING, COMPLETED, FAILED
+  completedAt         DateTime?
+  
+  // Metadata
+  notes               String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  
+  agent               Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  
+  @@index([agentId])
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model AgentVerification {
+  id                  String    @id @default(uuid())
+  agentId             String
+  userId              String
+  type                String    // PHYSICAL, ID, ADDRESS
+  status              String    @default("PENDING") // PENDING, COMPLETED, FAILED
+  notes               String?
+  
+  // Location
+  verificationLocation String?
+  latitude            Float?
+  longitude           Float?
+  
+  // Timestamps
+  scheduledFor        DateTime?
+  completedAt         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  
+  agent               Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  user                User      @relation("AgentVerificationUser", fields: [userId], references: [id])
+  
+  @@index([agentId])
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@index([scheduledFor])
+}
+
+model SystemLog {
+  id                  String    @id @default(uuid())
+  level               String    // INFO, WARN, ERROR, DEBUG
+  module              String    // AUTH, PAYMENT, BOOKING, TRUST, etc.
+  message             String
+  data                Json?
+  
+  userId              String?
+  ipAddress           String?
+  userAgent           String?
+  
+  createdAt           DateTime  @default(now())
+  
+  @@index([level])
+  @@index([module])
+  @@index([createdAt])
+  @@index([userId])
+}
+
+model Configuration {
+  id                  String    @id @default(uuid())
+  key                 String    @unique
+  value               Json
+  description         String?
+  isPublic            Boolean   @default(false)
+  isEditable          Boolean   @default(true)
+  
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  updatedBy           String?
+  
+  @@index([key])
+  @@index([isPublic])
+}

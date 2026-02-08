@@ -1,0 +1,64 @@
+{
+  "name": "@rental-platform/root",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Ethiopian Rental Marketplace - Complete Platform",
+  "author": "Rental Platform Team",
+  "license": "MIT",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "install:all": "npm install --workspaces",
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev:frontend": "turbo run dev --filter=@rental-platform/frontend",
+    "dev:backend": "turbo run dev --filter=@rental-platform/backend",
+    "build": "npm run build --workspaces",
+    "build:production": "turbo run build:production",
+    "lint": "turbo run lint",
+    "lint:fix": "turbo run lint:fix",
+    "test": "turbo run test",
+    "test:watch": "turbo run test:watch",
+    "test:e2e": "turbo run test:e2e",
+    "type-check": "turbo run type-check",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,css,scss}\" --ignore-path .gitignore",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,css,scss}\" --ignore-path .gitignore",
+    "prepare": "husky install",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "clean:install": "npm run clean && npm install",
+    "docker:up": "docker compose -f infrastructure/docker/docker-compose.dev.yml up -d",
+    "docker:down": "docker-compose -f infrastructure/docker/docker-compose.dev.yml down -v",
+    "docker:logs": "docker-compose -f infrastructure/docker/docker-compose.dev.yml logs -f",
+    "docker:rebuild": "docker-compose -f infrastructure/docker/docker-compose.dev.yml up -d --build --force-recreate",
+    "db:migrate": "turbo run db:migrate",
+    "db:studio": "turbo run db:studio",
+    "db:seed": "turbo run db:seed",
+    "db:reset": "turbo run db:reset",
+    "ci": "npm run type-check && npm run lint && npm run test && npm run build",
+    "release": "standard-version",
+    "release:minor": "standard-version --release-as minor",
+    "release:major": "standard-version --release-as major"
+  },
+  "devDependencies": {
+    "turbo": "^1.12.0",
+    "typescript": "^5.3.0",
+    "@types/node": "^20.10.0",
+    "prettier": "^3.1.0",
+    "prettier-plugin-tailwindcss": "^0.5.0",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.2.0",
+    "standard-version": "^9.5.0",
+    "@commitlint/cli": "^18.4.3",
+    "@commitlint/config-conventional": "^18.4.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "packageManager": "npm@9.0.0",
+  "volta": {
+    "node": "18.17.0",
+    "npm": "9.0.0"
+  }
+}

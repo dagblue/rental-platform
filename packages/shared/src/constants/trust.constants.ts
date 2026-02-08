@@ -1,0 +1,3 @@
+export const TRUST_CONSTANTS = {
+    DEPOSIT_MULTIPLIERS: { NEW: 2.0, BASIC: 1.5, VERIFIED: 1.0, TRUSTED: 0.5 }
+  };

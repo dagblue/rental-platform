@@ -1,0 +1,4 @@
+export const PAYMENT_CONSTANTS = {
+    METHODS: ['MOBILE_MONEY', 'CASH', 'BANK_TRANSFER']
+  };
+  

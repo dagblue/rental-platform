@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: rental-postgres
+    environment:
+      POSTGRES_USER: rental
+      POSTGRES_PASSWORD: rental123
+      POSTGRES_DB: rental_platform
+      POSTGRES_INITDB_ARGS: '--encoding=UTF8 --locale=en_US.UTF-8 --auth-host=md5'
+    ports:
+      - '5433:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    command: >
+      postgres 
+      -c listen_addresses='*'
+      -c password_encryption=scram-sha-256
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U rental -d rental_platform']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - rental-network
+  redis:
+    image: redis:7-alpine
+    container_name: rental-redis
+    command: redis-server --appendonly yes
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', '--raw', 'incr', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - rental-network
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: rental-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@rental.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - '5050:80'
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - rental-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  rental-network:
+    driver: bridge
