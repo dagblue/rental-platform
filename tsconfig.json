@@ -1,0 +1,10 @@
+{
+    "extends": "./packages/shared/tsconfig.json",
+    "compilerOptions": {
+      "baseUrl": ".",
+      "paths": {
+        "@rental-platform/*": ["packages/*/src"]
+      }
+    },
+    "exclude": ["node_modules", "dist"]
+  }

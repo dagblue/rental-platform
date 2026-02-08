@@ -1,0 +1,26 @@
+
+> @rental-platform/database@1.0.0 build
+> tsc
+
+src/client/index.ts(41,3): error TS2305: Module '"@prisma/client"' has no exported member 'User'.
+src/client/index.ts(42,3): error TS2305: Module '"@prisma/client"' has no exported member 'Listing'.
+src/client/index.ts(43,3): error TS2305: Module '"@prisma/client"' has no exported member 'Category'.
+src/client/index.ts(44,3): error TS2305: Module '"@prisma/client"' has no exported member 'Booking'.
+src/client/index.ts(45,3): error TS2305: Module '"@prisma/client"' has no exported member 'Payment'.
+src/client/index.ts(46,3): error TS2305: Module '"@prisma/client"' has no exported member 'Review'.
+src/client/index.ts(47,3): error TS2305: Module '"@prisma/client"' has no exported member 'Agent'.
+src/client/index.ts(48,3): error TS2305: Module '"@prisma/client"' has no exported member 'Wallet'.
+src/client/index.ts(49,3): error TS2305: Module '"@prisma/client"' has no exported member 'Transaction'.
+src/client/index.ts(50,3): error TS2305: Module '"@prisma/client"' has no exported member 'Verification'.
+src/client/index.ts(51,3): error TS2305: Module '"@prisma/client"' has no exported member 'Guarantor'.
+src/client/index.ts(52,3): error TS2305: Module '"@prisma/client"' has no exported member 'TrustLog'.
+src/client/index.ts(53,3): error TS2305: Module '"@prisma/client"' has no exported member 'Message'.
+src/client/index.ts(54,3): error TS2305: Module '"@prisma/client"' has no exported member 'Notification'.
+src/client/index.ts(55,3): error TS2305: Module '"@prisma/client"' has no exported member 'Dispute'.
+npm error Lifecycle script `build` failed with error:
+npm error code 2
+npm error path C:\Users\Dagamwi\Desktop\rental-platform\packages\database
+npm error workspace @rental-platform/database@1.0.0
+npm error location C:\Users\Dagamwi\Desktop\rental-platform\packages\database
+npm error command failed
+npm error command C:\WINDOWS\system32\cmd.exe /d /s /c tsc
