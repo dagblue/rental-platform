@@ -13,7 +13,6 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@prisma/client": "^5.7.0",
     "@rental-platform/auth": "*",
     "@rental-platform/database": "*",
     "@rental-platform/shared": "*",

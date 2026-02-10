@@ -1,13 +1,51 @@
 {
   "root": true,
-  "extends": ["eslint:recommended", "plugin:@typescript-eslint/recommended"],
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended"
+  ],
   "parser": "@typescript-eslint/parser",
   "plugins": ["@typescript-eslint"],
   "rules": {
     "no-console": "warn",
     "@typescript-eslint/no-explicit-any": "warn",
-    "@typescript-eslint/no-unused-vars": "warn",
-    "@typescript-eslint/no-var-requires": "off"
+    "@typescript-eslint/no-unused-vars": ["warn", {
+      "argsIgnorePattern": "^_",
+      "varsIgnorePattern": "^_",
+      "caughtErrorsIgnorePattern": "^_"
+    }],
+    "@typescript-eslint/no-var-requires": "off",
+    "@typescript-eslint/ban-types": ["error", {
+      "types": {
+        "{}": {
+          "message": "Use Record<string, never> instead",
+          "fixWith": "Record<string, never>"
+        },
+        "object": {
+          "message": "Use Record<string, unknown> instead",
+          "fixWith": "Record<string, unknown>"
+        }
+      },
+      "extendDefaults": true
+    }]
   },
-  "ignorePatterns": ["dist/", "node_modules/", "*.js"]
+  "ignorePatterns": [
+    "node_modules/",
+    "dist/",
+    "build/",
+    "**/*.js",
+    "**/client/",
+    "**/runtime/",
+    ".turbo/",
+    ".husky/",
+    "coverage/"
+  ],
+  "overrides": [
+    {
+      "files": ["*.ts", "*.tsx"],
+      "rules": {
+        "@typescript-eslint/no-explicit-any": "error"
+      }
+    }
+  ]
 }

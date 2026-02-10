@@ -1,0 +1,35 @@
+# Ignore ALL node_modules
+node_modules/
+
+# Ignore ALL build directories
+dist/
+build/
+*.js
+*.js.map
+
+# CRITICAL: Ignore ALL Prisma generated files
+packages/database/src/client/
+packages/database/dist/
+**/@prisma/client/
+**/prisma/client/
+**/client/
+**/runtime/
+
+# Ignore ALL TypeScript compiler output
+*.d.ts
+*.d.ts.map
+
+# Ignore tool directories
+.turbo/
+.husky/
+
+# Ignore uploads
+uploads/
+
+# Ignore coverage
+coverage/
+.nyc_output/
+
+# Ignore OS files
+.DS_Store
+Thumbs.db

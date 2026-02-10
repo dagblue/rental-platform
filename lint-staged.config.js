@@ -1,6 +1,27 @@
 module.exports = {
-    '*.{js,jsx,ts,tsx}': ['eslint --fix', 'prettier --write'],
-    '*.{json,md,yml,yaml,html}': ['prettier --write'],
-    '*.{css,scss}': ['prettier --write'],
-    '*.{graphql,gql}': ['prettier --write']
-  };
+  '**/*.{ts,tsx}': (filenames) => {
+    // Filter out generated files
+    const sourceFiles = filenames.filter(
+      (f) => !f.includes('node_modules') && 
+             !f.includes('dist') && 
+             !f.includes('/client/') && 
+             !f.includes('/runtime/')
+    );
+    
+    if (sourceFiles.length === 0) return [];
+    
+    return [
+      `npx prettier --write ${sourceFiles.join(' ')}`,
+      `npx eslint --fix ${sourceFiles.join(' ')} --max-warnings=10`
+    ];
+  },
+  '**/*.{js,jsx,json,md}': (filenames) => {
+    const sourceFiles = filenames.filter(
+      (f) => !f.includes('node_modules') && !f.includes('dist')
+    );
+    
+    if (sourceFiles.length === 0) return [];
+    
+    return [`npx prettier --write ${sourceFiles.join(' ')}`];
+  }
+};

@@ -31,6 +31,8 @@ app.get('/health', (req, res) => {
 
 // API routes
 app.use(`${appConfig.apiPrefix}/auth`, authRoutes);
+// User routes
+app.use(`${appConfig.apiPrefix}/users`, userRoutes);
 
 // 404 handler
 app.use((req, res) => {
@@ -63,3 +65,9 @@ process.on('SIGTERM', async () => {
 });
 
 export default app;
+
+// Import user routes
+import userRoutes from './routes/user.routes';
+
+// Add to app (after auth routes)
+app.use(`${appConfig.apiPrefix}/users`, userRoutes);
