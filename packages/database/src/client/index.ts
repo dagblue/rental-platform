@@ -35,22 +35,3 @@ export const checkDatabaseHealth = async (): Promise<boolean> => {
     return false;
   }
 };
-
-// Create a types file to export Prisma types
-export type {
-  User,
-  Listing,
-  Category,
-  Booking,
-  Payment,
-  Review,
-  Agent,
-  Wallet,
-  Transaction,
-  Verification,
-  Guarantor,
-  TrustLog,
-  Message,
-  Notification,
-  Dispute,
-} from '@prisma/client';
