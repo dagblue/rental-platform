@@ -1,28 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
-// Check if JwtService is exported as default or named
-import * as authPackage from '@rental-platform/auth';
+import { JwtService } from '@rental-platform/auth'; // Use proper named import
 
 export interface AuthRequest extends Request {
   user?: any;
 }
 
-// Try to get JwtService from auth package
-const JwtService =
-  (authPackage as any).JwtService ||
-  (authPackage as any).default?.JwtService ||
-  class MockJwtService {
-    verifyAccessToken(token: string) {
-      try {
-        // Simple mock verification
-        const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
-        return payload;
-      } catch {
-        return null;
-      }
-    }
-  };
-
-const jwtService = new (JwtService as any)();
+const jwtService = new JwtService();
 
 export function authenticate() {
   return (req: AuthRequest, res: Response, next: NextFunction) => {

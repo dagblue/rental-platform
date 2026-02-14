@@ -1,13 +1,20 @@
 // Load environment variables FIRST
 import 'dotenv/config';
-
+import path from 'path';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+
+// Import config
 import { appConfig } from './config/app.config';
+
+// Import middleware
 import { errorHandler } from './middleware/error.middleware';
+
+// Import routes - ALL IMPORTS AT THE TOP!
 import authRoutes from './routes/auth.routes';
+import userRoutes from './routes/user.routes';
 
 const app = express();
 
@@ -17,6 +24,9 @@ app.use(cors(appConfig.cors));
 app.use(morgan(appConfig.nodeEnv === 'development' ? 'dev' : 'combined'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve static files
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Health check
 app.get('/health', (req, res) => {
@@ -29,9 +39,8 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API routes
+// API routes - REGISTERED HERE (ONLY ONCE!)
 app.use(`${appConfig.apiPrefix}/auth`, authRoutes);
-// User routes
 app.use(`${appConfig.apiPrefix}/users`, userRoutes);
 
 // 404 handler
@@ -49,12 +58,12 @@ app.use(errorHandler);
 const PORT = appConfig.port;
 app.listen(PORT, () => {
   console.log(`
-ï¿½ï¿½ï¿½ Ethiopian Rental Platform API
-ï¿½ï¿½ï¿½ Port: ${PORT}
-ï¿½ï¿½ï¿½ ${new Date().toLocaleString()}
-ï¿½ï¿½ï¿½ Health: http://localhost:${PORT}/health
-ï¿½ï¿½ï¿½ API: http://localhost:${PORT}${appConfig.apiPrefix}
-ï¿½ï¿½ï¿½ Environment: ${appConfig.nodeEnv}
+íº€ Ethiopian Rental Platform API
+í³¡ Port: ${PORT}
+â° ${new Date().toLocaleString()}
+í¿¥ Health: http://localhost:${PORT}/health
+í´— API: http://localhost:${PORT}${appConfig.apiPrefix}
+í¼ Environment: ${appConfig.nodeEnv}
   `);
 });
 
@@ -65,9 +74,3 @@ process.on('SIGTERM', async () => {
 });
 
 export default app;
-
-// Import user routes
-import userRoutes from './routes/user.routes';
-
-// Add to app (after auth routes)
-app.use(`${appConfig.apiPrefix}/users`, userRoutes);
