@@ -1,0 +1,49 @@
+
+> @rental-platform/auth@0.1.0 lint
+> eslint src/**/*.ts
+
+
+C:\Users\Dagamwi\Desktop\rental-platform\packages\auth\src\decorators\ethiopian-context.decorator.ts
+  30:4   warning  'data' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+  30:19  warning  'ctx' is defined but never used. Allowed unused args must match /^_/u   @typescript-eslint/no-unused-vars
+
+C:\Users\Dagamwi\Desktop\rental-platform\packages\auth\src\guards\jwt-auth.guard.ts
+  13:22  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  13:33  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  13:44  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  26:66  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Dagamwi\Desktop\rental-platform\packages\auth\src\services\auth.service.ts
+  155:13  warning  'passwordHash' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+C:\Users\Dagamwi\Desktop\rental-platform\packages\auth\src\services\ethiopian-auth.service.ts
+  28:43  warning  'deviceId' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+  32:7   warning  Unexpected console statement                                                no-console
+
+C:\Users\Dagamwi\Desktop\rental-platform\packages\auth\src\services\phone-verification.service.ts
+  77:5  warning  Unexpected console statement  no-console
+
+C:\Users\Dagamwi\Desktop\rental-platform\packages\auth\src\strategies\local.strategy.ts
+  15:60  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Dagamwi\Desktop\rental-platform\packages\auth\src\strategies\phone-otp.strategy.ts
+  16:56  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Dagamwi\Desktop\rental-platform\packages\auth\src\test.auth.ts
+  10:3   warning  Unexpected console statement                                                            no-console
+  16:11  warning  'authService' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  18:5   warning  Unexpected console statement                                                            no-console
+  21:5   warning  Unexpected console statement                                                            no-console
+  24:5   warning  Unexpected console statement                                                            no-console
+  25:5   warning  Unexpected console statement                                                            no-console
+  28:5   warning  Unexpected console statement                                                            no-console
+  57:5   warning  Unexpected console statement                                                            no-console
+  61:5   warning  Unexpected console statement                                                            no-console
+  64:5   warning  Unexpected console statement                                                            no-console
+  68:5   warning  Unexpected console statement                                                            no-console
+  72:5   warning  Unexpected console statement                                                            no-console
+  73:5   warning  Unexpected console statement                                                            no-console
+  76:5   warning  Unexpected console statement                                                            no-console
+
+✖ 26 problems (0 errors, 26 warnings)
+

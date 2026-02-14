@@ -66,7 +66,7 @@ export interface Listing {
   yearOfManufacture: number | null;
   brand: string | null;
   model: string | null;
-  specifications: Record<string, any>; // JSON object for category-specific specs
+  specifications: Record<string, unknown>; // JSON object for category-specific specs
 
   // Media
   images: ListingImage[];

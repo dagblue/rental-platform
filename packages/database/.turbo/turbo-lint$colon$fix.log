@@ -1,0 +1,13 @@
+
+> @rental-platform/database@1.0.0 lint:fix
+> eslint src --ext .ts,.tsx --fix
+
+
+C:\Users\Dagamwi\Desktop\rental-platform\packages\database\src\index.ts
+  14:5  warning  Unexpected console statement  no-console
+  16:5  warning  Unexpected console statement  no-console
+  23:3  warning  Unexpected console statement  no-console
+  31:5  warning  Unexpected console statement  no-console
+
+✖ 4 problems (0 errors, 4 warnings)
+

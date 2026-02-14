@@ -1,0 +1,37 @@
+
+> @rental-platform/backend@1.0.0 lint
+> eslint src --ext .ts,.tsx --max-warnings=50
+
+
+C:\Users\Dagamwi\Desktop\rental-platform\apps\backend\src\controllers\auth\auth.controller.ts
+   17:39  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   61:37  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   61:79  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  157:28  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Dagamwi\Desktop\rental-platform\apps\backend\src\controllers\users\user.controller.ts
+   11:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   43:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   77:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  111:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  136:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  180:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Dagamwi\Desktop\rental-platform\apps\backend\src\middleware\auth.middleware.ts
+   6:10  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  11:19  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  12:19  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  25:39  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Dagamwi\Desktop\rental-platform\apps\backend\src\middleware\error.middleware.ts
+  19:3  warning  'next' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+
+C:\Users\Dagamwi\Desktop\rental-platform\apps\backend\src\services\users\user.service.ts
+    1:15  warning  'Prisma' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  128:31  warning  Unexpected any. Specify a different type                                  @typescript-eslint/no-explicit-any
+
+C:\Users\Dagamwi\Desktop\rental-platform\apps\backend\src\utils\api.response.ts
+  3:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+✖ 18 problems (0 errors, 18 warnings)
+
