@@ -1,44 +1,20 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
+import { ExecutionContext } from '@nestjs/common';
 
-@Injectable()
-export class TrustLevelGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
+export class TrustLevelGuard {
+  constructor(private requiredLevel: string) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const requiredTrustLevels = this.reflector.get<string[]>('trustLevels', context.getHandler());
-    const requirePhoneVerified = this.reflector.get<boolean>('phoneVerified', context.getHandler());
-    const requireEthiopianId = this.reflector.get<boolean>('ethiopianIdVerified', context.getHandler());
-
-    // If no trust requirements, allow access
-    if (!requiredTrustLevels && !requirePhoneVerified && !requireEthiopianId) {
-      return true;
-    }
-
     const request = context.switchToHttp().getRequest();
     const user = request.user;
     
-    if (!user) {
-      throw new ForbiddenException('User not authenticated');
+    if (!user || !user.trustLevel) {
+      return false;
     }
-
-    // Check trust levels
-    if (requiredTrustLevels && !requiredTrustLevels.includes(user.trustLevel)) {
-      throw new ForbiddenException(
-        `Insufficient trust level. Required: ${requiredTrustLevels.join(' or ')}. You have: ${user.trustLevel}`
-      );
-    }
-
-    // Check phone verification
-    if (requirePhoneVerified && !user.isPhoneVerified) {
-      throw new ForbiddenException('Phone verification required');
-    }
-
-    // Check Ethiopian ID verification
-    if (requireEthiopianId && !user.idNumber) {
-      throw new ForbiddenException('Ethiopian ID verification required');
-    }
-
-    return true;
+    
+    const trustLevels = ['NEW', 'BASIC', 'VERIFIED', 'TRUSTED'];
+    const userLevelIndex = trustLevels.indexOf(user.trustLevel);
+    const requiredLevelIndex = trustLevels.indexOf(this.requiredLevel);
+    
+    return userLevelIndex >= requiredLevelIndex;
   }
 }

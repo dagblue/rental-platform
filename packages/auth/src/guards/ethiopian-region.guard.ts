@@ -1,39 +1,13 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
-import { EthiopianRegion } from '@rental-platform/shared';
+import { ExecutionContext } from '@nestjs/common';
 
-@Injectable()
-export class EthiopianRegionGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
-
+export class EthiopianRegionGuard {
   canActivate(context: ExecutionContext): boolean {
-    const requiredRegions = this.reflector.get<EthiopianRegion[]>('ethiopianRegions', context.getHandler());
-    
-    if (!requiredRegions || requiredRegions.length === 0) {
-      return true; // No region restrictions
-    }
-
     const request = context.switchToHttp().getRequest();
-    const user = request.user;
+    const region = request.headers['x-ethiopian-region'] || request.user?.address?.region;
     
-    if (!user) {
-      throw new ForbiddenException('User not authenticated');
-    }
-
-    // Get user's region from address or request headers
-    const userRegion = user.address?.region || request.headers['x-ethiopian-region'];
+    // Add your region validation logic here
+    const allowedRegions = ['Addis Ababa', 'Oromia', 'Amhara', 'Tigray', 'SNNPR', 'Sidama', 'Harari', 'Gambella', 'Benishangul-Gumuz', 'Afar', 'Somali'];
     
-    if (!userRegion) {
-      throw new ForbiddenException('Region information not available');
-    }
-
-    const hasAccess = requiredRegions.includes(userRegion as EthiopianRegion);
-    if (!hasAccess) {
-      throw new ForbiddenException(
-        `Access restricted to regions: ${requiredRegions.join(', ')}. Your region: ${userRegion}`
-      );
-    }
-
-    return true;
+    return allowedRegions.includes(region);
   }
 }

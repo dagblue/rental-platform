@@ -1,11 +1,11 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from './client';
 
 const prisma = new PrismaClient();
 
 // Export Prisma client
 export { prisma };
 export { PrismaClient };
-export { Prisma } from '@prisma/client'; // Export the namespace for types
+export { Prisma } from './client'; // Export the namespace for types
 
 // Database utilities
 export const connectDatabase = async (): Promise<void> => {

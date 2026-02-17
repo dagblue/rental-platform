@@ -1,158 +1,253 @@
-import { Injectable, ConflictException, UnauthorizedException } from '@nestjs/common';
-import { SecurityUtils } from '../utils/security.utils';
-import { EthiopianAuthService } from './ethiopian-auth.service';
-import { PhoneVerificationService } from './phone-verification.service';
-import { 
-  IUser, 
-  ILoginResponse, 
-  IRegistrationResponse,
-  ITokenPayload 
-} from '../interfaces/auth.interface';
-import { 
-  ethiopianUserRegistrationSchema, 
-  EthiopianUserRegistrationInput 
-} from '@rental-platform/validation';
+import { JwtService } from './jwt.service';
 
-@Injectable()
+export interface AuthTokens {
+  access_token: string;
+  refresh_token: string;
+}
+
+export interface User {
+  id: string;
+  phone: any; // Can be string or phone object
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  role: string;
+}
+
+export interface RegisterResult {
+  success: boolean;
+  user?: User;
+  tokens?: AuthTokens;
+}
+
+export interface LoginResult {
+  success: boolean;
+  user?: User;
+  tokens?: AuthTokens;
+}
+
 export class AuthService {
-  private users = new Map<string, IUser>();
+  private users: Map<string, any> = new Map();
+  private verificationCodes: Map<string, string> = new Map();
 
-  constructor(
-    private readonly phoneVerificationService: PhoneVerificationService,
-    private readonly ethiopianAuthService: EthiopianAuthService
-  ) {}
+  constructor(private jwtService: JwtService) {}
 
-  async register(userData: EthiopianUserRegistrationInput): Promise<IRegistrationResponse> {
-    const validatedData = ethiopianUserRegistrationSchema.parse(userData);
-    
-    // Check if phone exists
-    if (this.findUserByPhone(validatedData.phone.number)) {
-      throw new ConflictException('Phone number already registered');
+  async register(userData: any): Promise<RegisterResult> {
+    try {
+      // Get phone string for lookup key
+      const phoneKey = typeof userData.phone === 'object' 
+        ? userData.phone.formatted || userData.phone.number 
+        : userData.phone;
+
+      // Check if user already exists
+      if (this.users.has(phoneKey)) {
+        return {
+          success: false,
+        };
+      }
+
+      // Create new user
+      const newUser = {
+        id: Date.now().toString(),
+        phone: userData.phone, // Store the phone object as received
+        email: userData.email,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        role: 'USER',
+        createdAt: new Date()
+      };
+
+      // Store user with phone key for lookup
+      this.users.set(phoneKey, {
+        ...newUser,
+        password: userData.password // In production, hash this!
+      });
+
+      // Generate tokens
+      const access_token = this.jwtService.generateAccessToken({
+        userId: newUser.id,
+        phone: userData.phone,
+        role: newUser.role
+      });
+      
+      const refresh_token = this.jwtService.generateRefreshToken({
+        userId: newUser.id,
+        phone: userData.phone,
+        role: newUser.role
+      });
+
+      const tokens = {
+        access_token,
+        refresh_token
+      };
+
+      console.log(`‚úÖ User registered with phone: ${phoneKey}`);
+
+      // Generate verification code
+      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      this.verificationCodes.set(phoneKey, verificationCode);
+      console.log(`Ì≥± Verification code: ${verificationCode}`);
+
+      return {
+        success: true,
+        user: newUser,
+        tokens: tokens
+      };
+    } catch (error) {
+      console.error('Registration error:', error);
+      return {
+        success: false
+      };
     }
-
-    // Hash password
-    const passwordHash = await SecurityUtils.hashPassword(validatedData.password);
-
-    // Create user
-    const user: IUser = {
-      id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      phone: validatedData.phone,
-      email: validatedData.email,
-      firstName: validatedData.firstName,
-      lastName: validatedData.lastName,
-      passwordHash,
-      idNumber: validatedData.idNumber,
-      address: validatedData.address,
-      preferredLanguage: validatedData.preferredLanguage,
-      trustLevel: 'NEW',
-      trustScore: 10,
-      isActive: true,
-      isPhoneVerified: false,
-      isEmailVerified: false,
-      failedLoginAttempts: 0,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-
-    this.users.set(user.id, user);
-
-    // Create verification
-    await this.phoneVerificationService.createVerification(user.phone.number);
-
-    // Apply Ethiopian context
-    await this.ethiopianAuthService.applyEthiopianContext(user);
-
-    return {
-      user: this.sanitizeUser(user),
-      verificationRequired: true,
-      message: 'Registration successful. Please verify your phone number.'
-    };
   }
 
-  async login(phone: string, password: string, deviceId?: string): Promise<ILoginResponse> {
-    const user = this.findUserByPhone(phone);
-    if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    // Check lock
-    if (user.lockUntil && user.lockUntil > new Date()) {
-      const minutesLeft = Math.ceil((user.lockUntil.getTime() - Date.now()) / 60000);
-      throw new UnauthorizedException(`Account locked. Try again in ${minutesLeft} minutes`);
-    }
-
-    // Verify password
-    const validPassword = await SecurityUtils.comparePassword(password, user.passwordHash);
-    if (!validPassword) {
-      user.failedLoginAttempts++;
+  async login(phoneInput: string, password: string, deviceId?: string): Promise<LoginResult> {
+    try {
+      console.log(`Ì¥ê Login attempt for phone input:`, phoneInput);
       
-      if (user.failedLoginAttempts >= 5) {
-        user.lockUntil = new Date(Date.now() + 30 * 60 * 1000);
+      // Try different phone formats to find the user
+      let user = null;
+      
+      // Check all possible phone formats
+      for (const [key, value] of this.users.entries()) {
+        const userPhone = value.phone;
+        
+        // If userPhone is an object, check its properties
+        if (typeof userPhone === 'object') {
+          if (userPhone.formatted === phoneInput || 
+              userPhone.number === phoneInput.replace('+251', '') ||
+              `+251${userPhone.number}` === phoneInput ||
+              userPhone.formatted?.replace(/\s/g, '') === phoneInput.replace(/\s/g, '')) {
+            user = value;
+            console.log('‚úÖ Found user by phone object match');
+            break;
+          }
+        } 
+        // If userPhone is a string, compare directly
+        else if (userPhone === phoneInput || 
+                 userPhone.replace(/\s/g, '') === phoneInput.replace(/\s/g, '')) {
+          user = value;
+          console.log('‚úÖ Found user by phone string match');
+          break;
+        }
       }
+
+      if (!user) {
+        console.log('‚ùå User not found for phone:', phoneInput);
+        console.log('Available users:', Array.from(this.users.keys()));
+        return {
+          success: false
+        };
+      }
+
+      if (user.password !== password) {
+        console.log('‚ùå Invalid password');
+        return {
+          success: false
+        };
+      }
+
+      console.log('‚úÖ User authenticated successfully');
+
+      // Generate tokens
+      const access_token = this.jwtService.generateAccessToken({
+        userId: user.id,
+        phone: user.phone,
+        role: user.role
+      });
       
-      this.users.set(user.id, user);
-      throw new UnauthorizedException('Invalid credentials');
+      const refresh_token = this.jwtService.generateRefreshToken({
+        userId: user.id,
+        phone: user.phone,
+        role: user.role
+      });
+
+      const tokens = {
+        access_token,
+        refresh_token
+      };
+
+      return {
+        success: true,
+        user: {
+          id: user.id,
+          phone: user.phone,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role
+        },
+        tokens: tokens
+      };
+    } catch (error) {
+      console.error('Login error:', error);
+      return {
+        success: false
+      };
     }
-
-    // Reset failed attempts
-    user.failedLoginAttempts = 0;
-    user.lockUntil = undefined;
-    user.lastLoginAt = new Date();
-    this.users.set(user.id, user);
-
-    // Generate tokens
-    const payload: ITokenPayload = {
-      sub: user.id,
-      phone: user.phone.number,
-      trustLevel: user.trustLevel,
-      deviceId
-    };
-
-    const accessToken = SecurityUtils.generateAccessToken(payload);
-    const refreshToken = SecurityUtils.generateRefreshToken(payload);
-
-    // Validate Ethiopian context
-    await this.ethiopianAuthService.validateLoginContext(user, deviceId);
-
-    return {
-      accessToken,
-      refreshToken,
-      user: {
-        id: user.id,
-        phone: user.phone.formatted,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        trustLevel: user.trustLevel,
-        preferredLanguage: user.preferredLanguage
-      },
-      expiresIn: 3600
-    };
   }
 
   async verifyPhone(phone: string, code: string): Promise<boolean> {
-    const verified = await this.phoneVerificationService.verifyCode(phone, code);
+    const storedCode = this.verificationCodes.get(phone);
     
-    if (verified) {
-      const user = this.findUserByPhone(phone);
-      if (user) {
-        user.isPhoneVerified = true;
-        user.trustScore += 20;
-        user.updatedAt = new Date();
-        this.users.set(user.id, user);
+    if (storedCode && storedCode === code) {
+      this.verificationCodes.delete(phone);
+      return true;
+    }
+    
+    return false;
+  }
+
+  async refreshToken(refreshToken: string): Promise<{ access_token: string } | null> {
+    try {
+      const payload = this.jwtService.verifyRefreshToken(refreshToken);
+      
+      if (!payload) {
+        return null;
+      }
+
+      const newAccessToken = this.jwtService.generateAccessToken({
+        userId: payload.userId,
+        phone: payload.phone,
+        role: payload.role
+      });
+
+      return { access_token: newAccessToken };
+    } catch (error) {
+      return null;
+    }
+  }
+
+  async validateUser(phone: string, password: string): Promise<any> {
+    // Find user by phone
+    for (const [key, user] of this.users.entries()) {
+      const userPhone = user.phone;
+      
+      if (typeof userPhone === 'object') {
+        if (userPhone.formatted === phone || 
+            userPhone.number === phone.replace('+251', '') ||
+            `+251${userPhone.number}` === phone) {
+          if (user.password === password) {
+            return {
+              id: user.id,
+              phone: user.phone,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              role: user.role
+            };
+          }
+        }
+      } else if (userPhone === phone && user.password === password) {
+        return {
+          id: user.id,
+          phone: user.phone,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role
+        };
       }
     }
     
-    return verified;
-  }
-
-  private findUserByPhone(phone: string): IUser | undefined {
-    return Array.from(this.users.values()).find(
-      user => user.phone.number === phone
-    );
-  }
-
-  private sanitizeUser(user: IUser): Omit<IUser, 'passwordHash'> {
-    const { passwordHash, ...sanitized } = user;
-    return sanitized;
+    return null;
   }
 }

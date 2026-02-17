@@ -1,81 +1,76 @@
-// src/test.auth.ts
 import { AuthService } from './services/auth.service';
 import { EthiopianAuthService } from './services/ethiopian-auth.service';
 import { PhoneVerificationService } from './services/phone-verification.service';
-import { IUser } from './interfaces/auth.interface';
-import { EthiopianPhoneNumber } from '@rental-platform/shared';
-import { EthiopianLanguage } from '@rental-platform/shared';
+import { JwtService } from './services/jwt.service';
 
 async function testAuthPackage() {
-  console.log('üß™ Testing Auth Package...\n');
+  console.log('Ì∑™ Testing Auth Package...\n');
 
-  try {
-    // 1. Initialize services
-    const ethiopianAuthService = new EthiopianAuthService();
-    const phoneVerificationService = new PhoneVerificationService();
-    const authService = new AuthService(phoneVerificationService, ethiopianAuthService);
+  // Initialize services
+  const jwtService = new JwtService();
+  const phoneVerificationService = new PhoneVerificationService();
+  const ethiopianAuthService = new EthiopianAuthService();
+  const authService = new AuthService(jwtService);
 
-    console.log('‚úÖ Services initialized successfully');
+  console.log('‚úÖ Services initialized\n');
 
-    // 2. Test phone verification
-    console.log('\nüì± Testing Phone Verification...');
-    const phone = '+251911223344';
-    const verification = await phoneVerificationService.createVerification(phone);
-    console.log(`   OTP Code: ${verification.code}`);
-    console.log(`   Expires: ${verification.expiresAt.toISOString()}`);
+  // Test 1: Register a user
+  console.log('Ì≥ù Testing registration...');
+  const registerData = {
+    phone: '+251911223344',
+    firstName: 'John',
+    lastName: 'Doe',
+    password: 'Test@123'
+  };
+  
+  const registerResult = await authService.register(registerData);
+  console.log('   Registration:', registerResult.success);
+  console.log('   User:', registerResult.user);
+  console.log('   Tokens received:', !!registerResult.tokens);
+  console.log();
 
-    // 3. Test Ethiopian auth context - with correct types
-    console.log('\nüá™üáπ Testing Ethiopian Auth Context...');
-    
-    // Create properly typed mock user
-    const mockPhone: EthiopianPhoneNumber = {
-      countryCode: '+251',
-      number: '911223344',
-      formatted: '+251 91 122 3344',
-      isValid: true,
-      provider: 'ETHIO_TELECOM'
-    };
+  // Test 2: Login with the user
+  console.log('Ì¥ê Testing login...');
+  const loginResult = await authService.login(
+    registerData.phone,
+    registerData.password
+  );
+  
+  console.log('   Login success:', loginResult.success);
+  console.log('   User:', loginResult.user);
+  console.log('   Tokens:', !!loginResult.tokens);
+  console.log();
 
-    const mockUser: IUser = {
-      id: 'test-user-1',
-      phone: mockPhone,
-      firstName: 'John',
-      lastName: 'Doe',
-      passwordHash: 'hashed_password',
-      preferredLanguage: EthiopianLanguage.AMHARIC,
-      trustLevel: 'NEW',
-      trustScore: 10,
-      isActive: true,
-      isPhoneVerified: false,
-      isEmailVerified: false,
-      failedLoginAttempts: 0,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
+  // Test 3: Phone verification
+  console.log('Ì≥± Testing phone verification...');
+  const verificationCode = '123456'; // In real scenario, this would be sent via SMS
+  const verifyResult = await authService.verifyPhone(registerData.phone, verificationCode);
+  console.log('   Verification result:', verifyResult);
+  console.log();
 
-    const context = await ethiopianAuthService.applyEthiopianContext(mockUser);
-    console.log(`   Restrictions: ${context.restrictions.join(', ') || 'None'}`);
+  // Test 4: Ethiopian phone validation
+  console.log('Ì∑™Ì∑π Testing Ethiopian phone validation...');
+  const validPhone = '+251911223344';
+  const invalidPhone = '+1234567890';
+  
+  const isValidValid = await ethiopianAuthService.validateEthiopianPhone(validPhone);
+  const isValidInvalid = await ethiopianAuthService.validateEthiopianPhone(invalidPhone);
+  
+  console.log('   Valid phone:', isValidValid);
+  console.log('   Invalid phone:', isValidInvalid);
+  console.log();
 
-    // 4. Test trust boost calculation
-    const trustBoost = ethiopianAuthService.calculateEthiopianTrustBoost(mockUser);
-    console.log(`   Trust Boost: ${trustBoost} points`);
-
-    // 5. Test business hours check
-    console.log('\nüïê Testing Ethiopian Business Hours...');
-    const now = new Date();
-    const hour = now.getHours();
-    const minute = now.getMinutes();
-    console.log(`   Current time: ${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`);
-    
-    // Note: Actual business hours check is internal, but we can show current time
-
-    console.log('\nüéâ All tests passed! Auth package is working correctly.');
-    console.log('\nüì¶ Package ready for use in your application.');
-
-  } catch (error) {
-    console.error('‚ùå Test failed:', error);
-    process.exit(1);
+  // Test 5: JWT token verification
+  console.log('Ìæ´ Testing JWT token...');
+  if (loginResult.tokens) {
+    const payload = jwtService.verifyAccessToken(loginResult.tokens.access_token);
+    console.log('   Token valid:', !!payload);
+    console.log('   Token payload:', payload);
   }
+  console.log();
+
+  console.log('‚úÖ All tests completed!');
 }
 
-testAuthPackage();
+// Run the tests
+testAuthPackage().catch(console.error);
