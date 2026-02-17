@@ -58,12 +58,12 @@ app.use(errorHandler);
 const PORT = appConfig.port;
 app.listen(PORT, () => {
   console.log(`
-íº€ Ethiopian Rental Platform API
-í³¡ Port: ${PORT}
+ï¿½ï¿½ï¿½ Ethiopian Rental Platform API
+ï¿½ï¿½ï¿½ Port: ${PORT}
 â° ${new Date().toLocaleString()}
-í¿¥ Health: http://localhost:${PORT}/health
-í´— API: http://localhost:${PORT}${appConfig.apiPrefix}
-í¼ Environment: ${appConfig.nodeEnv}
+ï¿½ï¿½ï¿½ Health: http://localhost:${PORT}/health
+ï¿½ï¿½ï¿½ API: http://localhost:${PORT}${appConfig.apiPrefix}
+ï¿½ï¿½ï¿½ Environment: ${appConfig.nodeEnv}
   `);
 });
 
@@ -74,3 +74,8 @@ process.on('SIGTERM', async () => {
 });
 
 export default app;
+
+// DEBUG: Print what apiPrefix actually is
+console.log('ï¿½ï¿½ï¿½ DEBUG: apiPrefix =', appConfig.apiPrefix);
+console.log('ï¿½ï¿½ï¿½ DEBUG: auth routes mounted at:', `${appConfig.apiPrefix}/auth`);
+console.log('ï¿½ï¿½ï¿½ DEBUG: user routes mounted at:', `${appConfig.apiPrefix}/users`);

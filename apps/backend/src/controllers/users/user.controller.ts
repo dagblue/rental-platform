@@ -9,7 +9,7 @@ export class UserController {
   async getProfile(req: Request, res: Response) {
     try {
       const userId = (req as any).user?.userId;
-      
+
       if (!userId) {
         return res.status(401).json({
           success: false,
@@ -18,7 +18,7 @@ export class UserController {
       }
 
       const user = await this.userService.getProfile(userId);
-      
+
       if (!user) {
         return res.status(404).json({
           success: false,
@@ -41,7 +41,7 @@ export class UserController {
   async updateProfile(req: Request, res: Response) {
     try {
       const userId = (req as any).user?.userId;
-      
+
       if (!userId) {
         return res.status(401).json({
           success: false,
@@ -50,9 +50,9 @@ export class UserController {
       }
 
       const validatedData: UpdateProfileDto = updateProfileDto.parse(req.body);
-      
+
       const updatedUser = await this.userService.updateProfile(userId, validatedData);
-      
+
       return res.status(200).json({
         success: true,
         message: 'Profile updated successfully',
@@ -75,7 +75,7 @@ export class UserController {
   async verifyId(req: Request, res: Response) {
     try {
       const userId = (req as any).user?.userId;
-      
+
       if (!userId) {
         return res.status(401).json({
           success: false,
@@ -84,9 +84,9 @@ export class UserController {
       }
 
       const validatedData: VerifyIdDto = verifyIdDto.parse(req.body);
-      
+
       const verification = await this.userService.requestIdVerification(userId, validatedData);
-      
+
       return res.status(201).json({
         success: true,
         message: 'ID verification requested successfully',
@@ -107,9 +107,11 @@ export class UserController {
   }
 
   async getVerificationStatus(req: Request, res: Response) {
+    console.log('Verification status endpoint hit!'); // Add this
     try {
       const userId = (req as any).user?.userId;
-      
+      console.log('User ID:', userId); // Add this
+
       if (!userId) {
         return res.status(401).json({
           success: false,
@@ -118,24 +120,25 @@ export class UserController {
       }
 
       const verifications = await this.userService.getVerificationStatus(userId);
-      
+      console.log('Verifications found:', verifications); // Add this
+
       return res.status(200).json({
         success: true,
         data: verifications,
       });
     } catch (error) {
+      console.error('Error in getVerificationStatus:', error); // Add this
       return res.status(500).json({
         success: false,
         error: 'Internal server error',
       });
     }
   }
-
   async addGuarantor(req: Request, res: Response) {
     try {
       const userId = (req as any).user?.userId;
       const { guarantorPhone, relationship } = req.body;
-      
+
       if (!userId) {
         return res.status(401).json({
           success: false,
@@ -153,9 +156,9 @@ export class UserController {
       // In real app, you'd look up user by phone
       // For now, we'll use a mock
       const guarantorId = 'mock-guarantor-id';
-      
+
       const guarantor = await this.userService.addGuarantor(userId, guarantorId, relationship);
-      
+
       return res.status(201).json({
         success: true,
         message: 'Guarantor added successfully',
@@ -178,7 +181,7 @@ export class UserController {
   async getGuarantors(req: Request, res: Response) {
     try {
       const userId = (req as any).user?.userId;
-      
+
       if (!userId) {
         return res.status(401).json({
           success: false,
@@ -187,7 +190,7 @@ export class UserController {
       }
 
       const guarantors = await this.userService.getGuarantors(userId);
-      
+
       return res.status(200).json({
         success: true,
         data: guarantors,

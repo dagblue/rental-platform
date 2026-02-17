@@ -36,3 +36,13 @@ router.post('/guarantors', (req, res) => userController.addGuarantor(req, res));
 router.get('/guarantors', (req, res) => userController.getGuarantors(req, res));
 
 export default router;
+
+// TEMPORARY DEBUG ROUTE - Remove later
+router.get('/debug/users', (req, res) => {
+  // This is just for debugging - in real app, you'd query database
+  res.json({
+    success: true,
+    message: 'Debug - list users from memory',
+    note: 'This shows users stored in AuthService memory',
+  });
+});
