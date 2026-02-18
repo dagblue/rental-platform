@@ -5,6 +5,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import listingRoutes from './routes/listing.routes';
 
 // Import config
 import { appConfig } from './config/app.config';
@@ -39,10 +40,10 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API routes - REGISTERED HERE (ONLY ONCE!)
+// API routes
 app.use(`${appConfig.apiPrefix}/auth`, authRoutes);
 app.use(`${appConfig.apiPrefix}/users`, userRoutes);
-
+app.use(`${appConfig.apiPrefix}/listings`, listingRoutes);
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({
