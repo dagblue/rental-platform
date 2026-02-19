@@ -6,7 +6,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import listingRoutes from './routes/listing.routes';
-
+import bookingRoutes from './routes/booking.routes';
 // Import config
 import { appConfig } from './config/app.config';
 
@@ -44,6 +44,8 @@ app.get('/health', (req, res) => {
 app.use(`${appConfig.apiPrefix}/auth`, authRoutes);
 app.use(`${appConfig.apiPrefix}/users`, userRoutes);
 app.use(`${appConfig.apiPrefix}/listings`, listingRoutes);
+app.use(`${appConfig.apiPrefix}/bookings`, bookingRoutes);
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({
