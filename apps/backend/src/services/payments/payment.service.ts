@@ -205,8 +205,10 @@ export class PaymentService {
         releaseAmount = escrow.amount;
       } else if (data.releaseType === 'DEPOSIT_ONLY') {
         releaseAmount = escrow.amount * 0.2; // Assume 20% deposit
-      } else {
+      } else if (data.releaseType === 'PARTIAL' && data.releaseAmount) {
         releaseAmount = data.releaseAmount;
+      } else {
+        throw new Error('Invalid release type or missing release amount');
       }
 
       // Update wallet
@@ -248,7 +250,7 @@ export class PaymentService {
       };
     }
   }
-
+  
   async processWithdrawal(userId: string, data: WithdrawalDto) {
     try {
       const wallet = this.getWallet(userId);
