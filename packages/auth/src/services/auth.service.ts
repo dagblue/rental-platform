@@ -1,4 +1,5 @@
 import { JwtService } from './jwt.service';
+import { prisma } from '@rental-platform/database';
 
 export interface AuthTokens {
   access_token: string;
@@ -7,10 +8,10 @@ export interface AuthTokens {
 
 export interface User {
   id: string;
-  phone: any; // Can be string or phone object
-  email?: string;
-  firstName?: string;
-  lastName?: string;
+  phone: any;
+  email?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
   role: string;
 }
 
@@ -29,162 +30,234 @@ export interface LoginResult {
 export class AuthService {
   private users: Map<string, any> = new Map();
   private verificationCodes: Map<string, string> = new Map();
+  private useDatabase: boolean;
 
-  constructor(private jwtService: JwtService) {}
+  constructor(
+    private jwtService: JwtService,
+    useDatabase?: boolean  // Accept config as parameter
+  ) {
+    this.useDatabase = useDatabase ?? true; // Default to true if not provided
+  }
 
   async register(userData: any): Promise<RegisterResult> {
     try {
-      // Get phone string for lookup key
       const phoneKey = typeof userData.phone === 'object' 
         ? userData.phone.formatted || userData.phone.number 
         : userData.phone;
 
-      // Check if user already exists
-      if (this.users.has(phoneKey)) {
+      if (this.useDatabase) {
+        // DATABASE MODE
+        const existingUser = await prisma.user.findUnique({
+          where: { phone: phoneKey }
+        });
+
+        if (existingUser) {
+          return { success: false };
+        }
+
+        const newUser = await prisma.user.create({
+          data: {
+            phone: phoneKey,
+            email: userData.email || null,
+            firstName: userData.firstName || null,
+            lastName: userData.lastName || null,
+            passwordHash: userData.password,
+            role: 'RENTER',
+          },
+        });
+
+        const tokens = {
+          access_token: this.jwtService.generateAccessToken({
+            userId: newUser.id,
+            phone: phoneKey,
+            role: newUser.role
+          }),
+          refresh_token: this.jwtService.generateRefreshToken({
+            userId: newUser.id,
+            phone: phoneKey,
+            role: newUser.role
+          })
+        };
+
         return {
-          success: false,
+          success: true,
+          user: {
+            id: newUser.id,
+            phone: userData.phone,
+            email: newUser.email,
+            firstName: newUser.firstName,
+            lastName: newUser.lastName,
+            role: newUser.role
+          },
+          tokens
+        };
+      } else {
+        // MEMORY MODE
+        if (this.users.has(phoneKey)) {
+          return { success: false };
+        }
+
+        const newUser = {
+          id: Date.now().toString(),
+          phone: userData.phone,
+          email: userData.email,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          role: 'RENTER',
+          createdAt: new Date()
+        };
+
+        this.users.set(phoneKey, {
+          ...newUser,
+          password: userData.password
+        });
+
+        const tokens = {
+          access_token: this.jwtService.generateAccessToken({
+            userId: newUser.id,
+            phone: userData.phone,
+            role: newUser.role
+          }),
+          refresh_token: this.jwtService.generateRefreshToken({
+            userId: newUser.id,
+            phone: userData.phone,
+            role: newUser.role
+          })
+        };
+
+        return {
+          success: true,
+          user: newUser,
+          tokens
         };
       }
-
-      // Create new user
-      const newUser = {
-        id: Date.now().toString(),
-        phone: userData.phone, // Store the phone object as received
-        email: userData.email,
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-        role: 'USER',
-        createdAt: new Date()
-      };
-
-      // Store user with phone key for lookup
-      this.users.set(phoneKey, {
-        ...newUser,
-        password: userData.password // In production, hash this!
-      });
-
-      // Generate tokens
-      const access_token = this.jwtService.generateAccessToken({
-        userId: newUser.id,
-        phone: userData.phone,
-        role: newUser.role
-      });
-      
-      const refresh_token = this.jwtService.generateRefreshToken({
-        userId: newUser.id,
-        phone: userData.phone,
-        role: newUser.role
-      });
-
-      const tokens = {
-        access_token,
-        refresh_token
-      };
-
-      console.log(`‚úÖ User registered with phone: ${phoneKey}`);
-
-      // Generate verification code
-      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-      this.verificationCodes.set(phoneKey, verificationCode);
-      console.log(`Ì≥± Verification code: ${verificationCode}`);
-
-      return {
-        success: true,
-        user: newUser,
-        tokens: tokens
-      };
     } catch (error) {
       console.error('Registration error:', error);
-      return {
-        success: false
-      };
+      return { success: false };
     }
   }
 
   async login(phoneInput: string, password: string, deviceId?: string): Promise<LoginResult> {
     try {
-      console.log(`Ì¥ê Login attempt for phone input:`, phoneInput);
-      
-      // Try different phone formats to find the user
-      let user = null;
-      
-      // Check all possible phone formats
-      for (const [key, value] of this.users.entries()) {
-        const userPhone = value.phone;
-        
-        // If userPhone is an object, check its properties
-        if (typeof userPhone === 'object') {
-          if (userPhone.formatted === phoneInput || 
-              userPhone.number === phoneInput.replace('+251', '') ||
-              `+251${userPhone.number}` === phoneInput ||
-              userPhone.formatted?.replace(/\s/g, '') === phoneInput.replace(/\s/g, '')) {
+      if (this.useDatabase) {
+        // DATABASE MODE
+        const user = await prisma.user.findUnique({
+          where: { phone: phoneInput }
+        });
+
+        if (!user || user.passwordHash !== password) {
+          return { success: false };
+        }
+
+        const tokens = {
+          access_token: this.jwtService.generateAccessToken({
+            userId: user.id,
+            phone: phoneInput,
+            role: user.role
+          }),
+          refresh_token: this.jwtService.generateRefreshToken({
+            userId: user.id,
+            phone: phoneInput,
+            role: user.role
+          })
+        };
+
+        return {
+          success: true,
+          user: {
+            id: user.id,
+            phone: phoneInput,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            role: user.role
+          },
+          tokens
+        };
+      } else {
+        // MEMORY MODE
+        let user = null;
+        for (const [key, value] of this.users.entries()) {
+          const userPhone = value.phone;
+          if (typeof userPhone === 'object') {
+            if (userPhone.formatted === phoneInput || 
+                userPhone.number === phoneInput.replace('+251', '') ||
+                `+251${userPhone.number}` === phoneInput) {
+              user = value;
+              break;
+            }
+          } else if (userPhone === phoneInput) {
             user = value;
-            console.log('‚úÖ Found user by phone object match');
             break;
           }
-        } 
-        // If userPhone is a string, compare directly
-        else if (userPhone === phoneInput || 
-                 userPhone.replace(/\s/g, '') === phoneInput.replace(/\s/g, '')) {
-          user = value;
-          console.log('‚úÖ Found user by phone string match');
-          break;
         }
-      }
 
-      if (!user) {
-        console.log('‚ùå User not found for phone:', phoneInput);
-        console.log('Available users:', Array.from(this.users.keys()));
+        if (!user || user.password !== password) {
+          return { success: false };
+        }
+
+        const tokens = {
+          access_token: this.jwtService.generateAccessToken({
+            userId: user.id,
+            phone: user.phone,
+            role: user.role
+          }),
+          refresh_token: this.jwtService.generateRefreshToken({
+            userId: user.id,
+            phone: user.phone,
+            role: user.role
+          })
+        };
+
         return {
-          success: false
+          success: true,
+          user: {
+            id: user.id,
+            phone: user.phone,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            role: user.role
+          },
+          tokens
         };
       }
+    } catch (error) {
+      console.error('Login error:', error);
+      return { success: false };
+    }
+  }
 
-      if (user.password !== password) {
-        console.log('‚ùå Invalid password');
-        return {
-          success: false
-        };
-      }
-
-      console.log('‚úÖ User authenticated successfully');
-
-      // Generate tokens
-      const access_token = this.jwtService.generateAccessToken({
-        userId: user.id,
-        phone: user.phone,
-        role: user.role
+  async validateUser(phone: string, password: string): Promise<any> {
+    if (this.useDatabase) {
+      const user = await prisma.user.findUnique({
+        where: { phone }
       });
       
-      const refresh_token = this.jwtService.generateRefreshToken({
-        userId: user.id,
-        phone: user.phone,
-        role: user.role
-      });
-
-      const tokens = {
-        access_token,
-        refresh_token
-      };
-
-      return {
-        success: true,
-        user: {
+      if (user && user.passwordHash === password) {
+        return {
           id: user.id,
           phone: user.phone,
-          email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
           role: user.role
-        },
-        tokens: tokens
-      };
-    } catch (error) {
-      console.error('Login error:', error);
-      return {
-        success: false
-      };
+        };
+      }
+    } else {
+      for (const [key, user] of this.users.entries()) {
+        const userPhone = typeof user.phone === 'object' ? user.phone.formatted : user.phone;
+        if (userPhone === phone && user.password === password) {
+          return {
+            id: user.id,
+            phone: user.phone,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            role: user.role
+          };
+        }
+      }
     }
+    return null;
   }
 
   async verifyPhone(phone: string, code: string): Promise<boolean> {
@@ -192,9 +265,16 @@ export class AuthService {
     
     if (storedCode && storedCode === code) {
       this.verificationCodes.delete(phone);
+      
+      if (this.useDatabase) {
+        await prisma.user.update({
+          where: { phone },
+          data: { phoneVerified: true }
+        }).catch(err => console.error('Error updating verification status:', err));
+      }
+      
       return true;
     }
-    
     return false;
   }
 
@@ -216,38 +296,5 @@ export class AuthService {
     } catch (error) {
       return null;
     }
-  }
-
-  async validateUser(phone: string, password: string): Promise<any> {
-    // Find user by phone
-    for (const [key, user] of this.users.entries()) {
-      const userPhone = user.phone;
-      
-      if (typeof userPhone === 'object') {
-        if (userPhone.formatted === phone || 
-            userPhone.number === phone.replace('+251', '') ||
-            `+251${userPhone.number}` === phone) {
-          if (user.password === password) {
-            return {
-              id: user.id,
-              phone: user.phone,
-              firstName: user.firstName,
-              lastName: user.lastName,
-              role: user.role
-            };
-          }
-        }
-      } else if (userPhone === phone && user.password === password) {
-        return {
-          id: user.id,
-          phone: user.phone,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          role: user.role
-        };
-      }
-    }
-    
-    return null;
   }
 }

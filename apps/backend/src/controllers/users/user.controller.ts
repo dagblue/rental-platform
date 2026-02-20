@@ -1,10 +1,10 @@
 import { Request, Response } from 'express';
-import { UserService } from '../../services/users/user.service';
+import { IUserService } from '../../services/users/user-service.interface';
 import { updateProfileDto, UpdateProfileDto } from '../../dto/users/update-profile.dto';
 import { verifyIdDto, VerifyIdDto } from '../../dto/users/verify-id.dto';
 
 export class UserController {
-  constructor(private userService: UserService) {}
+  constructor(private userService: IUserService) {} // Use interface
 
   async getProfile(req: Request, res: Response) {
     try {
@@ -50,7 +50,6 @@ export class UserController {
       }
 
       const validatedData: UpdateProfileDto = updateProfileDto.parse(req.body);
-      
       const updatedUser = await this.userService.updateProfile(userId, validatedData);
       
       return res.status(200).json({
@@ -84,7 +83,6 @@ export class UserController {
       }
 
       const validatedData: VerifyIdDto = verifyIdDto.parse(req.body);
-      
       const verification = await this.userService.requestIdVerification(userId, validatedData);
       
       return res.status(201).json({

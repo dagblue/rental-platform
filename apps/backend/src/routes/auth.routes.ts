@@ -2,12 +2,13 @@ import { Router } from 'express';
 import { AuthController } from '../controllers/auth/auth.controller';
 import { AuthService, JwtService } from '@rental-platform/auth';
 import { UserService } from '../services/users/user.service';
+import { dbConfig } from '../config/database.config';
 
 const router = Router();
 
 // Create services
 const jwtService = new JwtService();
-const authService = new AuthService(jwtService);
+const authService = new AuthService(jwtService, dbConfig.useDatabase);
 const userService = new UserService(); // Add this
 const authController = new AuthController(authService, userService); // Pass it
 

@@ -1,12 +1,12 @@
 // Use the centralized database package
-import { prisma as databasePrisma, PrismaClient } from '@rental-platform/database';
+import { prisma as databasePrisma } from '@rental-platform/database';
 
 export class DatabaseService {
-  private static instance: PrismaClient;
+  private static instance: typeof databasePrisma;
 
   private constructor() {}
 
-  public static getInstance(): PrismaClient {
+  public static getInstance(): typeof databasePrisma {
     if (!DatabaseService.instance) {
       // Use the prisma instance from database package
       DatabaseService.instance = databasePrisma;
@@ -27,9 +27,10 @@ export class DatabaseService {
   public static async disconnect(): Promise<void> {
     if (DatabaseService.instance) {
       await DatabaseService.instance.$disconnect();
+      console.log('í³¤ Database disconnected');
     }
   }
 }
 
-// Export singleton instance (from database package)
+// Export singleton instance
 export const prisma = DatabaseService.getInstance();

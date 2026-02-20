@@ -1,18 +1,33 @@
 import { Router } from 'express';
 import { UserController } from '../controllers/users/user.controller';
+import { UserService as UserServiceMemory } from '../services/users/user.service';
+import { UserServiceDb } from '../services/users/user.service.db'; // Fixed import
 import { UploadController } from '../controllers/upload/upload.controller';
-import { UserService } from '../services/users/user.service';
 import { UploadService } from '../services/upload/upload.service';
 import { authenticate } from '../middleware/auth.middleware';
 import { upload } from '../config/upload/multer.config';
+import { dbConfig } from '../config/database.config';
 
 const router = Router();
-const userService = new UserService();
+
+// Choose which service to use based on config
+const userService = dbConfig.useDatabase 
+  ? new UserServiceDb()   // Now matches the exported class name
+  : new UserServiceMemory();
+
 const uploadService = new UploadService();
 const userController = new UserController(userService);
 const uploadController = new UploadController(uploadService);
 
-// All routes require authentication
+// TEMPORARY DEBUG ROUTE - Add BEFORE authentication
+router.get('/debug/users', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Debug endpoint - user routes are working',
+  });
+});
+
+// All protected routes require authentication
 router.use(authenticate());
 
 // Profile management
@@ -36,13 +51,3 @@ router.post('/guarantors', (req, res) => userController.addGuarantor(req, res));
 router.get('/guarantors', (req, res) => userController.getGuarantors(req, res));
 
 export default router;
-
-// TEMPORARY DEBUG ROUTE - Remove later
-router.get('/debug/users', (req, res) => {
-  // This is just for debugging - in real app, you'd query database
-  res.json({
-    success: true,
-    message: 'Debug - list users from memory',
-    note: 'This shows users stored in AuthService memory',
-  });
-});
