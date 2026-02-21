@@ -1,4 +1,0 @@
-
-> @rental-platform/frontend@1.0.0 lint
-> eslint src --ext .ts,.tsx --max-warnings=100
-

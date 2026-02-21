@@ -110,5 +110,4 @@ export class AuthController {
     }
   }
 
-  // ... other methods remain the same
 }
