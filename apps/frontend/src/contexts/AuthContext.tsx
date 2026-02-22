@@ -51,7 +51,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (response.success) {
         setUser(response.data.user);
         toast.success('Logged in successfully');
-        router.push('/dashboard');
+        router.push('/');
       }
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Login failed');
