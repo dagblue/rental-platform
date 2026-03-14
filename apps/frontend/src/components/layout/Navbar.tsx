@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import {
   Search,
   User,
@@ -26,26 +27,70 @@ import {
   CreditCard,
   Star,
   Settings,
+  MessageSquare,
+  Bell,
 } from 'lucide-react';
+import { messagesApi } from '@/lib/api/messages';
+import { notificationsApi } from '@/lib/api/notifications';
 
 export function Navbar() {
   const { user, logout } = useAuth();
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notificationCount, setNotificationCount] = useState(0);
 
-  // Don't show navbar on dashboard pages
-  if (pathname?.startsWith('/dashboard')) return null;
+
+  useEffect(() => {
+    if (user) {
+      fetchUnreadCount();
+      fetchNotificationCount();
+      
+      // Set up polling
+      const messageInterval = setInterval(fetchUnreadCount, 30000);
+      const notificationInterval = setInterval(fetchNotificationCount, 60000);
+      
+      return () => {
+        clearInterval(messageInterval);
+        clearInterval(notificationInterval);
+      };
+    }
+  }, [user]);
+
+  const fetchUnreadCount = async () => {
+    try {
+      const response = await messagesApi.getUnreadCount();
+      if (response.success) {
+        setUnreadCount(response.data.total);
+      }
+    } catch (error: any) {
+      if (error.response?.status !== 404) {
+        console.error('Failed to fetch unread count:', error);
+      }
+    }
+  };
+
+  const fetchNotificationCount = async () => {
+    try {
+      const response = await notificationsApi.getUnreadCount();
+      if (response.success) {
+        setNotificationCount(response.data.count);
+      }
+    } catch (error: any) {
+      if (error.response?.status !== 404) {
+        console.error('Failed to fetch notification count:', error);
+      }
+    }
+  };
 
   const getInitials = () => {
     if (!user) return 'U';
     return `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase();
   };
 
-  // Format phone for display (fix the object error)
   const getDisplayPhone = () => {
     if (!user) return '';
     if (typeof user.phone === 'object' && user.phone !== null) {
-      // Type guard for expected phone object shape
       const phoneObj = user.phone as { formatted?: string; number?: string };
       return phoneObj.formatted || phoneObj.number || 'Phone number';
     }
@@ -56,14 +101,19 @@ export function Navbar() {
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'My Listings', href: '/dashboard/listings', icon: Package },
     { name: 'My Bookings', href: '/dashboard/bookings', icon: Calendar },
+    { name: 'Messages', href: '/dashboard/messages', icon: MessageSquare },
+    { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
     { name: 'Payments', href: '/dashboard/payments', icon: CreditCard },
     { name: 'Reviews', href: '/dashboard/reviews', icon: Star },
     { name: 'Profile', href: '/dashboard/profile', icon: User },
     { name: 'Settings', href: '/dashboard/settings', icon: Settings },
   ];
 
+  if (pathname?.startsWith('/dashboard')) return null;
+
   return (
     <nav className="bg-white border-b sticky top-0 z-50">
+      {/* Rest of your JSX remains exactly the same */}
       <div className="container mx-auto px-4 py-3">
         <div className="flex justify-between items-center">
           {/* Logo */}
@@ -82,9 +132,20 @@ export function Navbar() {
             </Link>
 
             {user ? (
-              /* Logged in menu - Hamburger ONLY (no duplicate) */
               <div className="flex items-center gap-2">
-                {/* Hamburger Menu Button */}
+                {/* Notifications Bell */}
+                <Link href="/dashboard/notifications" className="relative">
+                  <Button variant="ghost" size="icon">
+                    <Bell className="h-5 w-5" />
+                    {notificationCount > 0 && (
+                      <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                        {notificationCount > 9 ? '9+' : notificationCount}
+                      </span>
+                    )}
+                  </Button>
+                </Link>
+
+                {/* Hamburger Menu Button with Unread Badge */}
                 <Button
                   variant="ghost"
                   size="icon"
@@ -92,6 +153,11 @@ export function Navbar() {
                   onClick={() => setIsMenuOpen(!isMenuOpen)}
                 >
                   {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+                  {!isMenuOpen && unreadCount > 0 && (
+                    <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-red-500 text-white">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </Badge>
+                  )}
                 </Button>
 
                 {/* Avatar Dropdown */}
@@ -110,7 +176,7 @@ export function Navbar() {
                           {user.firstName} {user.lastName}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {getDisplayPhone()} {/* Fixed: using formatted phone */}
+                          {getDisplayPhone()}
                         </p>
                       </div>
                     </DropdownMenuLabel>
@@ -136,7 +202,6 @@ export function Navbar() {
                 </DropdownMenu>
               </div>
             ) : (
-              /* Logged out menu */
               <div className="flex items-center gap-4">
                 <Link href="/login" className="text-gray-700 hover:text-primary">
                   Login
@@ -153,10 +218,7 @@ export function Navbar() {
       {/* Slide-out Menu Panel */}
       {isMenuOpen && user && (
         <>
-          {/* Overlay */}
           <div className="fixed inset-0 bg-black/20 z-40" onClick={() => setIsMenuOpen(false)} />
-
-          {/* Menu Panel */}
           <div className="fixed right-0 top-0 h-full w-80 bg-white shadow-xl z-50 p-6 overflow-y-auto animate-in slide-in-from-right">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold">Menu</h2>
@@ -165,7 +227,6 @@ export function Navbar() {
               </Button>
             </div>
 
-            {/* User Info - Fixed phone display */}
             <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg mb-6">
               <Avatar className="h-12 w-12">
                 <AvatarFallback className="text-lg">{getInitials()}</AvatarFallback>
@@ -178,7 +239,6 @@ export function Navbar() {
               </div>
             </div>
 
-            {/* Navigation Items */}
             <div className="space-y-1">
               {navItems.map((item) => {
                 const Icon = item.icon;
@@ -187,19 +247,30 @@ export function Navbar() {
                   <Link
                     key={item.name}
                     href={item.href}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                    className={`flex items-center justify-between px-4 py-3 rounded-lg transition-colors ${
                       isActive ? 'bg-primary/10 text-primary' : 'hover:bg-gray-100'
                     }`}
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    <Icon className="h-5 w-5" />
-                    <span className="font-medium">{item.name}</span>
+                    <div className="flex items-center gap-3">
+                      <Icon className="h-5 w-5" />
+                      <span className="font-medium">{item.name}</span>
+                    </div>
+                    {item.name === 'Messages' && unreadCount > 0 && (
+                      <Badge className="bg-primary text-primary-foreground">
+                        {unreadCount}
+                      </Badge>
+                    )}
+                    {item.name === 'Notifications' && notificationCount > 0 && (
+                      <Badge className="bg-primary text-primary-foreground">
+                        {notificationCount}
+                      </Badge>
+                    )}
                   </Link>
                 );
               })}
             </div>
 
-            {/* Logout Button */}
             <div className="border-t mt-6 pt-6">
               <Button
                 variant="outline"

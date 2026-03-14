@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
-import { Home, Package, Calendar, CreditCard, Star, User, LogOut, Menu } from 'lucide-react';
+import { Home, Package, Calendar, CreditCard, Star, User, LogOut, Menu, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -59,6 +59,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: 'My Listings', href: '/dashboard/listings', icon: Package },
     { name: 'My Bookings', href: '/dashboard/bookings', icon: Calendar },
     { name: 'Payments', href: '/dashboard/payments', icon: CreditCard },
+    { name: 'Messages', href: '/dashboard/messages', icon: MessageSquare },
     { name: 'Reviews', href: '/dashboard/reviews', icon: Star },
     { name: 'Profile', href: '/dashboard/profile', icon: User },
   ];
