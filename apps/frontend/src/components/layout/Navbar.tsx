@@ -34,19 +34,17 @@ import { messagesApi } from '@/lib/api/messages';
 import { notificationsApi } from '@/lib/api/notifications';
 
 export function Navbar() {
-  const { user, logout } = useAuth();
+  const { user, logout, isLoading } = useAuth();  // Added isLoading here
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notificationCount, setNotificationCount] = useState(0);
-
 
   useEffect(() => {
     if (user) {
       fetchUnreadCount();
       fetchNotificationCount();
       
-      // Set up polling
       const messageInterval = setInterval(fetchUnreadCount, 30000);
       const notificationInterval = setInterval(fetchNotificationCount, 60000);
       
@@ -56,6 +54,26 @@ export function Navbar() {
       };
     }
   }, [user]);
+
+  // Show loading skeleton while auth is initializing
+  if (isLoading) {
+    return (
+      <nav className="bg-white border-b sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-3">
+          <div className="flex justify-between items-center">
+            <div className="text-xl font-bold text-primary">Rental Platform</div>
+            <div className="flex items-center gap-4">
+              <div className="h-8 w-8 bg-gray-200 rounded-full animate-pulse" />
+              <div className="h-8 w-8 bg-gray-200 rounded-full animate-pulse" />
+            </div>
+          </div>
+        </div>
+      </nav>
+    );
+  }
+
+  // Don't show navbar on dashboard pages
+  if (pathname?.startsWith('/dashboard')) return null;
 
   const fetchUnreadCount = async () => {
     try {
@@ -109,11 +127,8 @@ export function Navbar() {
     { name: 'Settings', href: '/dashboard/settings', icon: Settings },
   ];
 
-  if (pathname?.startsWith('/dashboard')) return null;
-
   return (
     <nav className="bg-white border-b sticky top-0 z-50">
-      {/* Rest of your JSX remains exactly the same */}
       <div className="container mx-auto px-4 py-3">
         <div className="flex justify-between items-center">
           {/* Logo */}

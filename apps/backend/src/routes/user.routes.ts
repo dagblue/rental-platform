@@ -51,3 +51,7 @@ router.post('/guarantors', (req, res) => userController.addGuarantor(req, res));
 router.get('/guarantors', (req, res) => userController.getGuarantors(req, res));
 
 export default router;
+
+// Trust & Verification
+router.get('/trust', (req, res) => userController.getTrustData(req, res));
+router.get('/verification-status', (req, res) => userController.getVerificationStatus(req, res));

@@ -1,9 +1,8 @@
 import { z } from 'zod';
-import { ethiopianPhoneSchema } from '@rental-platform/validation';
 
 export const loginDto = z.object({
-  phone: ethiopianPhoneSchema,
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  identifier: z.string().min(1, 'Phone number or email is required'),
+  password: z.string().min(1, 'Password is required'),
   deviceId: z.string().optional(),
 });
 

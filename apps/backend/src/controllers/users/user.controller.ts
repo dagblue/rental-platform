@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { IUserService } from '../../services/users/user-service.interface';
 import { updateProfileDto, UpdateProfileDto } from '../../dto/users/update-profile.dto';
 import { verifyIdDto, VerifyIdDto } from '../../dto/users/verify-id.dto';
+import { TrustService } from '../../services/users/trust.service';
 
 export class UserController {
   constructor(private userService: IUserService) {} // Use interface
@@ -29,6 +30,32 @@ export class UserController {
       return res.status(200).json({
         success: true,
         data: user,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+      });
+    }
+  }
+
+  async getTrustData(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.userId;
+      
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: 'Not authenticated',
+        });
+      }
+
+      const trustService = new TrustService();
+      const trustData = await trustService.getTrustData(userId);
+
+      return res.status(200).json({
+        success: true,
+        data: trustData,
       });
     } catch (error) {
       return res.status(500).json({

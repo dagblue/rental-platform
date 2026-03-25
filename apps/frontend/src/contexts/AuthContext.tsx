@@ -23,12 +23,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
 
   useEffect(() => {
-    const token = localStorage.getItem('auth_token');
-    if (token) {
-      fetchProfile();
-    } else {
-      setIsLoading(false);
-    }
+    const initializeAuth = async () => {
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        try {
+          const response = await authApi.getProfile();
+          if (response.success) {
+            setUser(response.data.user);
+          } else {
+            localStorage.removeItem('auth_token');
+          }
+        } catch (error) {
+          console.error('Auth error:', error);
+          localStorage.removeItem('auth_token');
+        }
+      }
+      setIsLoading(false); 
+    };
+
+    initializeAuth();
   }, []);
 
   const fetchProfile = async () => {
@@ -45,19 +58,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const login = async (phone: string, password: string) => {
-    try {
-      const response = await authApi.login({ phone, password });
-      if (response.success) {
-        setUser(response.data.user);
-        toast.success('Logged in successfully');
-        router.push('/');
-      }
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Login failed');
-      throw error;
+const login = async (phone: string, password: string) => {
+  try {
+    const response = await authApi.login({ phone, password });
+    if (response.success) {
+      setUser(response.data.user);
+      toast.success('Logged in successfully');
+      router.push('/');
     }
-  };
+  } catch (error: any) {
+    toast.error(error.response?.data?.error || 'Login failed');
+    throw error;
+  }
+};
 
   const register = async (data: any) => {
     try {

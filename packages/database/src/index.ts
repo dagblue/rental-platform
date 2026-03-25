@@ -1,13 +1,30 @@
-import { PrismaClient } from './client';
+import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcrypt';
+import { Prisma } from '@prisma/client';
 
-const prisma = new PrismaClient();
+export const prisma = new PrismaClient();
 
-// Export Prisma client
-export { prisma };
+const hashPasswordMiddleware: Prisma.Middleware = async (params, next) => {
+  console.log('Ì¥ß Middleware triggered for:', params.model, params.action);
+  
+  if (params.model === 'User') {
+    if (params.action === 'create' && params.args.data.passwordHash) {
+      console.log('Ì¥ê Hashing password for new user...');
+      console.log('Ì≥ù Original password length:', params.args.data.passwordHash.length);
+      params.args.data.passwordHash = await bcrypt.hash(params.args.data.passwordHash, 10);
+      console.log('‚úÖ Password hashed successfully');
+    }
+  }
+
+  return next(params);
+};
+
+prisma.$use(hashPasswordMiddleware);
+
+export * from '@prisma/client';
 export { PrismaClient };
-export { Prisma } from './client'; // Export the namespace for types
+export { Prisma } from './client';
 
-// Database utilities
 export const connectDatabase = async (): Promise<void> => {
   try {
     await prisma.$connect();
@@ -20,7 +37,7 @@ export const connectDatabase = async (): Promise<void> => {
 
 export const disconnectDatabase = async (): Promise<void> => {
   await prisma.$disconnect();
-  console.log('‚úÖ Database disconnected');
+  console.log('Ì≥§ Database disconnected');
 };
 
 export const checkDatabaseHealth = async (): Promise<boolean> => {

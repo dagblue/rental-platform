@@ -1,3 +1,4 @@
+import { ReactNode } from 'react';
 import { apiClient } from './client';
 
 export interface CreateListingData {
@@ -42,6 +43,7 @@ export interface Listing {
   currency: string;
   minimumRentalDays: number;
   maximumRentalDays?: number | null;
+  categoryId: string; 
   region: string;
   city: string;
   subcity?: string | null;

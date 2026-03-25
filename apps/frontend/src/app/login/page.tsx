@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 
 export default function LoginPage() {
-  const [phone, setPhone] = useState('');
+  const [identifier, setIdentifier] = useState('');  // Changed from phone
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
@@ -22,7 +22,8 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      await login(phone, password);
+      // Note: Your AuthContext.login will need to be updated to accept identifier
+      await login(identifier, password);
     } catch (error) {
       // Error handled in AuthContext
     } finally {
@@ -36,18 +37,18 @@ export default function LoginPage() {
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl text-center">Welcome Back</CardTitle>
           <CardDescription className="text-center">
-            Enter your Ethiopian phone number to login
+            Enter your Ethiopian phone number or email to login
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
+              <Label htmlFor="identifier">Phone Number or Email</Label>
               <Input
-                id="phone"
-                placeholder="+251 91 234 5678"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                id="identifier"
+                placeholder="+251 91 234 5678 or email@example.com"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
                 required
                 className="h-11"
               />

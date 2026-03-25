@@ -224,6 +224,7 @@ model User {
   reviewsReceived    Review[]            @relation("Reviewee")
   messagesSent       Message[]           @relation("Sender")
   messagesReceived   Message[]           @relation("Receiver")
+  conversations      Conversation[]      @relation("UserConversations")
   wallet             Wallet?
   transactions       Transaction[]
   disputes           Dispute[]           @relation("DisputeOpener")
@@ -926,15 +927,28 @@ model DisputeMessage {
   @@index([createdAt])
 }
 
+model Conversation {
+  id            String    @id @default(uuid())
+  participants  User[]    @relation("UserConversations")
+  lastMessageId String?   @unique // Add @unique here
+  lastMessage   Message?  @relation("ConversationLastMessage", fields: [lastMessageId], references: [id])
+  messages      Message[] @relation("ConversationMessages")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([updatedAt])
+}
+
 model Message {
-  id         String  @id @default(uuid())
-  senderId   String
-  receiverId String
-  bookingId  String? // Added ? to make it optional
+  id             String  @id @default(uuid())
+  senderId       String
+  receiverId     String
+  bookingId      String?
+  conversationId String?
 
   // Content
   content     String
-  messageType String   @default("TEXT") // TEXT, IMAGE, DOCUMENT, SYSTEM
+  messageType String   @default("TEXT")
   attachments String[]
 
   // Status
@@ -946,13 +960,16 @@ model Message {
   updatedAt DateTime @updatedAt
 
   // Relations
-  sender   User     @relation("Sender", fields: [senderId], references: [id])
-  receiver User     @relation("Receiver", fields: [receiverId], references: [id])
-  booking  Booking? @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  sender         User          @relation("Sender", fields: [senderId], references: [id])
+  receiver       User          @relation("Receiver", fields: [receiverId], references: [id])
+  booking        Booking?      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  conversation   Conversation? @relation("ConversationMessages", fields: [conversationId], references: [id]) // Matches messages
+  lastMessageFor Conversation? @relation("ConversationLastMessage") // Add this for the lastMessage relation
 
   @@index([senderId])
   @@index([receiverId])
   @@index([bookingId])
+  @@index([conversationId])
   @@index([isRead])
   @@index([createdAt])
 }

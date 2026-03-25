@@ -1,5 +1,11 @@
 import { JwtService } from './jwt.service';
 import { prisma } from '@rental-platform/database';
+import bcrypt from 'bcrypt';
+import { 
+  normalizeEthiopianPhone, 
+  isValidEthiopianPhone,
+  isEmail
+} from '@rental-platform/shared';
 
 export interface AuthTokens {
   access_token: string;
@@ -34,34 +40,60 @@ export class AuthService {
 
   constructor(
     private jwtService: JwtService,
-    useDatabase?: boolean  // Accept config as parameter
+    useDatabase?: boolean
   ) {
-    this.useDatabase = useDatabase ?? true; // Default to true if not provided
+    this.useDatabase = useDatabase ?? true;
   }
 
   async register(userData: any): Promise<RegisterResult> {
     try {
+      // PHONE IS REQUIRED - validate first
+      if (!userData.phone) {
+        console.error('Phone number is required');
+        return { success: false };
+      }
+      
+      // Normalize phone
       const phoneKey = typeof userData.phone === 'object' 
         ? userData.phone.formatted || userData.phone.number 
         : userData.phone;
+      const normalizedPhone = normalizeEthiopianPhone(phoneKey);
+      
+      // Validate phone format
+      if (!normalizedPhone || !isValidEthiopianPhone(normalizedPhone)) {
+        console.error('Invalid Ethiopian phone number');
+        return { success: false };
+      }
+      
+      // Process email if provided
+      let email: string | undefined;
+      if (userData.email) {
+        email = userData.email.toLowerCase();
+      }
 
       if (this.useDatabase) {
-        // DATABASE MODE
-        const existingUser = await prisma.user.findUnique({
-          where: { phone: phoneKey }
+        // Check for existing user
+        const existingUser = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { phone: normalizedPhone },
+              ...(email ? [{ email }] : []),
+            ],
+          },
         });
 
         if (existingUser) {
           return { success: false };
         }
 
+        // Create user - phone is guaranteed to be a string here
         const newUser = await prisma.user.create({
           data: {
-            phone: phoneKey,
-            email: userData.email || null,
+            phone: normalizedPhone, 
+            email: email || null,
             firstName: userData.firstName || null,
             lastName: userData.lastName || null,
-            passwordHash: userData.password,
+            passwordHash: userData.password, // Middleware will hash this
             role: 'RENTER',
           },
         });
@@ -69,12 +101,12 @@ export class AuthService {
         const tokens = {
           access_token: this.jwtService.generateAccessToken({
             userId: newUser.id,
-            phone: phoneKey,
+            phone: newUser.phone,
             role: newUser.role
           }),
           refresh_token: this.jwtService.generateRefreshToken({
             userId: newUser.id,
-            phone: phoneKey,
+            phone: newUser.phone,
             role: newUser.role
           })
         };
@@ -92,7 +124,8 @@ export class AuthService {
           tokens
         };
       } else {
-        // MEMORY MODE
+        // MEMORY MODE (fallback)
+        const phoneKey = normalizedPhone;
         if (this.users.has(phoneKey)) {
           return { success: false };
         }
@@ -137,27 +170,57 @@ export class AuthService {
     }
   }
 
-  async login(phoneInput: string, password: string, deviceId?: string): Promise<LoginResult> {
+    async login(identifier: string, password: string, deviceId?: string): Promise<LoginResult> {
     try {
+      console.log('🔐 Login attempt with identifier:', identifier);
+      
       if (this.useDatabase) {
-        // DATABASE MODE
-        const user = await prisma.user.findUnique({
-          where: { phone: phoneInput }
-        });
+        let user = null;
+        
+        // Determine if identifier is email or phone
+        if (isEmail(identifier)) {
+          console.log('📧 Login with email:', identifier.toLowerCase());
+          user = await prisma.user.findUnique({
+            where: { email: identifier.toLowerCase() }
+          });
+        } else {
+          // Login with phone
+          if (!isValidEthiopianPhone(identifier)) {
+            console.log('❌ Invalid Ethiopian phone format:', identifier);
+            return { success: false };
+          }
+          
+          const normalizedPhone = normalizeEthiopianPhone(identifier); // ← Now uses correct function
+          console.log('📱 Login with phone (normalized):', normalizedPhone);
+          user = await prisma.user.findUnique({
+            where: { phone: normalizedPhone }
+          });
+        }
 
-        if (!user || user.passwordHash !== password) {
+        if (!user) {
+          console.log('❌ User not found for:', identifier);
+          return { success: false };
+        }
+
+        console.log('✅ User found:', user.id, user.phone);
+        
+        const isValid = await bcrypt.compare(password, user.passwordHash ?? '');
+        console.log('✅ Password valid:', isValid);
+        
+        if (!isValid) {
+          console.log('❌ Invalid password');
           return { success: false };
         }
 
         const tokens = {
           access_token: this.jwtService.generateAccessToken({
             userId: user.id,
-            phone: phoneInput,
+            phone: user.phone,
             role: user.role
           }),
           refresh_token: this.jwtService.generateRefreshToken({
             userId: user.id,
-            phone: phoneInput,
+            phone: user.phone,
             role: user.role
           })
         };
@@ -166,7 +229,7 @@ export class AuthService {
           success: true,
           user: {
             id: user.id,
-            phone: phoneInput,
+            phone: user.phone,
             email: user.email,
             firstName: user.firstName,
             lastName: user.lastName,
@@ -175,18 +238,20 @@ export class AuthService {
           tokens
         };
       } else {
-        // MEMORY MODE
+        // MEMORY MODE (keep as is)
         let user = null;
+        const normalizedInput = normalizeEthiopianPhone(identifier);
+        
         for (const [key, value] of this.users.entries()) {
           const userPhone = value.phone;
           if (typeof userPhone === 'object') {
-            if (userPhone.formatted === phoneInput || 
-                userPhone.number === phoneInput.replace('+251', '') ||
-                `+251${userPhone.number}` === phoneInput) {
+            if (userPhone.formatted === normalizedInput || 
+                userPhone.number === normalizedInput.replace('+251', '') ||
+                `+251${userPhone.number}` === normalizedInput) {
               user = value;
               break;
             }
-          } else if (userPhone === phoneInput) {
+          } else if (userPhone === normalizedInput || userPhone === identifier) {
             user = value;
             break;
           }
@@ -228,25 +293,39 @@ export class AuthService {
     }
   }
 
-  async validateUser(phone: string, password: string): Promise<any> {
+  async validateUser(identifier: string, password: string): Promise<any> {
     if (this.useDatabase) {
-      const user = await prisma.user.findUnique({
-        where: { phone }
-      });
+      let user = null;
       
-      if (user && user.passwordHash === password) {
-        return {
-          id: user.id,
-          phone: user.phone,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          role: user.role
-        };
+      if (isEmail(identifier)) {
+        user = await prisma.user.findUnique({
+          where: { email: identifier.toLowerCase() }
+        });
+      } else {
+        const normalizedPhone = normalizeEthiopianPhone(identifier);
+        user = await prisma.user.findUnique({
+          where: { phone: normalizedPhone }
+        });
+      }
+      
+      if (user) {
+        console.log('🔐 Comparing password with hash:', user.passwordHash);
+        const isValid = await bcrypt.compare(password, user.passwordHash ?? '');
+        console.log('🔐 bcrypt.compare result:', isValid);
+        if (isValid) {
+          return {
+            id: user.id,
+            phone: user.phone,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            role: user.role
+          };
+        }
       }
     } else {
       for (const [key, user] of this.users.entries()) {
         const userPhone = typeof user.phone === 'object' ? user.phone.formatted : user.phone;
-        if (userPhone === phone && user.password === password) {
+        if ((userPhone === identifier || user.email === identifier) && user.password === password) {
           return {
             id: user.id,
             phone: user.phone,
