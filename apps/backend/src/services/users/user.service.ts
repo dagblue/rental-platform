@@ -198,11 +198,23 @@ export class UserService implements IUserService {
     return { id: userId, trustLevel: newLevel };
   }
 
-  async addGuarantor(userId: string, guarantorId: string, relationship: string) {
+  async addGuarantor(userId: string, guarantorPhone: string, relationship: string) {
     if (this.useDatabase) {
       try {
+        
+        const guarantorUser = await prisma.user.findUnique({
+          where: { phone: guarantorPhone }
+        });
+
+        if (!guarantorUser) {
+          throw new Error('Guarantor not found');
+        }
+
         const existing = await prisma.guarantor.findFirst({
-          where: { userId, guarantorId }
+          where: { 
+            userId, 
+            guarantorId: guarantorUser.id 
+          }
         });
 
         if (existing) {
@@ -212,7 +224,7 @@ export class UserService implements IUserService {
         return await prisma.guarantor.create({
           data: {
             userId,
-            guarantorId,
+            guarantorId: guarantorUser.id,
             relationship,
             status: 'PENDING',
             confirmationCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
@@ -224,10 +236,11 @@ export class UserService implements IUserService {
       }
     }
 
+    // Memory mode fallback
     const guarantor = {
       id: Date.now().toString(),
       userId,
-      guarantorId,
+      guarantorPhone,
       relationship,
       status: 'PENDING',
     };

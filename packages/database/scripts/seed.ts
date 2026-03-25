@@ -1,778 +1,591 @@
-import { PrismaClient } from '@prisma/client';
-import { hash } from 'bcryptjs';
-import { faker } from '@faker-js/faker';
-import { addDays, subDays } from 'date-fns';
+import { prisma } from '../src/index';
 
-const prisma = new PrismaClient();
+const PASSWORD = 'Test@123';
 
-async function main() {
-  console.log('🌱 Starting database seed...');
+// Ethiopian data generators
+const FIRST_NAMES = [
+  'Abel', 'Dawit', 'Biruk', 'Nahom', 'Samuel', 'Yonas', 'Meron', 'Saron', 'Hana', 'Liya',
+  'Meklit', 'Bethel', 'Rediet', 'Eden', 'Selam', 'Tigist', 'Azeb', 'Worknesh', 'Almaz', 'Tsehay'
+];
 
-  // Clear existing data (in correct order to avoid foreign key constraints)
-  console.log('🧹 Clearing existing data...');
+const LAST_NAMES = [
+  'Tesfaye', 'Bekele', 'Abebe', 'Kebede', 'Mekonnen', 'Tadesse', 'Hailu', 'Gebre', 'Alemayehu',
+  'Desta', 'Berhanu', 'Fikre', 'Girma', 'Haile', 'Kassa', 'Mulugeta', 'Negash', 'Tekle', 'Wondimu'
+];
+
+const REGIONS = [
+  'Addis Ababa', 'Oromia', 'Amhara', 'Tigray', 'Sidama', 'SNNPR', 'Harari', 'Gambella'
+];
+
+const CITIES = {
+  'Addis Ababa': ['Bole', 'Kirkos', 'Yeka', 'Gulele', 'Lideta', 'Arada', 'Kolfe', 'Nifas Silk'],
+  'Oromia': ['Adama', 'Bishoftu', 'Jimma', 'Shashamane', 'Ambo', 'Nekemte'],
+  'Amhara': ['Bahir Dar', 'Gondar', 'Dessie', 'Lalibela', 'Debre Markos'],
+  'Tigray': ['Mekelle', 'Adigrat', 'Axum', 'Shire'],
+};
+
+const CATEGORIES = [
+  { id: 'electronics', name: 'Electronics' },
+  { id: 'vehicles', name: 'Vehicles' },
+  { id: 'furniture', name: 'Furniture' },
+  { id: 'tools', name: 'Tools' },
+  { id: 'cameras', name: 'Cameras' },
+  { id: 'clothing', name: 'Clothing' },
+];
+
+const LISTING_TITLES: Record<string, string[]> = {
+  electronics: [
+    'Sony A7III Mirrorless Camera', 'MacBook Pro 16"', 'iPhone 15 Pro', 'DJI Mavic 3 Drone',
+    'iPad Pro 12.9"', 'Samsung 65" 4K TV', 'Bose QuietComfort Headphones', 'Canon EOS R5'
+  ],
+  vehicles: [
+    'Toyota Hilux 2023', 'Yamaha Motorcycle', 'Honda CBR 600RR', 'Suzuki Swift 2022',
+    'Hyundai Tucson 4WD', 'Electric Scooter', 'Toyota Corolla 2023', 'Scooter for Commute'
+  ],
+  furniture: [
+    'Modern Leather Sofa', 'Dining Table Set 6-Seater', 'Queen Size Bed Frame', 'Office Desk Executive',
+    'Bookshelf Wall Unit', 'Wardrobe 8-Door', 'Conference Table', 'Outdoor Patio Set'
+  ],
+  tools: [
+    'Bosch Power Drill Set', 'DeWalt Circular Saw', 'Industrial Generator 5kVA', 'Makita Impact Driver',
+    'Electric Welding Machine', 'Air Compressor', 'Heavy Duty Jackhammer', 'Professional Tool Kit'
+  ],
+  cameras: [
+    'Canon EOS R5 Professional', 'Sony FX6 Cinema Camera', 'Blackmagic Pocket 6K', 'GoPro Hero 12',
+    'DJI Ronin Gimbal', 'Professional Lighting Kit', 'Green Screen Setup', 'Audio Recording Kit'
+  ],
+  clothing: [
+    'Traditional Ethiopian Dress', "Men's Wedding Suit", "Women's Evening Gown", 'Winter Jacket',
+    'Designer Handbag', 'Shoes Collection', 'Accessories Set', 'Cultural Costume'
+  ],
+};
+
+const REVIEW_COMMENTS = {
+  5: [
+    'Excellent experience! Item was in perfect condition. Highly recommended!',
+    'Amazing! Owner was very professional and responsive.',
+    'Perfect rental, would definitely use again.',
+    'Top quality service. Everything was smooth and easy.',
+    'Fantastic! Item exceeded expectations.'
+  ],
+  4: [
+    'Very good experience. Minor issues but overall great.',
+    'Good rental, item worked as described.',
+    'Satisfied with the service. Would recommend.',
+    'Nice experience, owner was helpful.',
+    'Good value for money.'
+  ],
+  3: [
+    'Average experience. Item was okay.',
+    'Decent rental, nothing special.',
+    'Met expectations but didn\'t exceed them.',
+    'Acceptable condition and service.',
+    'Could be better but overall fine.'
+  ],
+  2: [
+    'Below expectations. Had some issues.',
+    'Not great. Item had some problems.',
+    'Disappointed with the condition.',
+    'Communication could be better.',
+    'Would not rent again.'
+  ],
+  1: [
+    'Very poor experience. Would not recommend.',
+    'Terrible! Item was not as described.',
+    'Waste of money. Avoid this owner.',
+    'Many issues with the rental.',
+    'Completely dissatisfied.'
+  ],
+};
+
+const MESSAGES = [
+  'Hi, is this still available?',
+  'Yes, it is! When would you like to book?',
+  'Can I pick it up tomorrow?',
+  'What time works for you?',
+  'Is the price negotiable?',
+  'Does it come with accessories?',
+  'How long have you had it?',
+  'Thanks for the quick response!',
+  "I'll take it. How do we proceed?",
+  'Great, sending booking request now.',
+  'When can you deliver?',
+  'Is there a deposit required?',
+  'Perfect, see you tomorrow!',
+  'Thank you, received.',
+  'Any discount for longer rental?'
+];
+
+function randomItem<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function randomPhone(): string {
+  const prefixes = ['911', '912', '913', '914', '915', '916', '917', '918', '919'];
+  return `+251${randomItem(prefixes)}${Math.floor(100000 + Math.random() * 900000)}`;
+}
+
+function randomEmail(firstName: string, lastName: string, index: number): string {
+  const domains = ['gmail.com', 'yahoo.com', 'outlook.com', 'ethiopia.et'];
+  return `${firstName.toLowerCase()}.${lastName.toLowerCase()}${index}@${randomItem(domains)}`;
+}
+
+function randomDate(start: Date, end: Date): Date {
+  return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+}
+
+function randomLocation() {
+  const region = randomItem(REGIONS);
+  const cities = CITIES[region as keyof typeof CITIES] || ['Addis Ababa'];
+  const city = randomItem(cities);
+  const subcity = typeof city === 'string' && city === 'Addis Ababa' ? randomItem(CITIES['Addis Ababa']) : null;
   
-  const tables = [
-    'SystemLog', 'Configuration', 'AgentVerification', 'AgentTransaction', 'Agent',
-    'Notification', 'Message', 'DisputeMessage', 'Dispute', 'Review', 'Transaction',
-    'Wallet', 'Payment', 'BookingGuarantor', 'Booking', 'AvailabilitySlot',
-    'ListingDocument', 'ListingVideo', 'ListingImage', 'Listing', 'Category',
-    'TrustLog', 'Guarantor', 'Verification', 'UserProfile', 'User'
-  ];
+  return {
+    region,
+    city,
+    subcity: subcity,
+    woreda: `${Math.floor(Math.random() * 15) + 1}`,
+    kebele: `${Math.floor(Math.random() * 25) + 1}`,
+    latitude: 8.98 + (Math.random() * 0.2),
+    longitude: 38.75 + (Math.random() * 0.2),
+    formattedAddress: `${city}, ${region}, Ethiopia`,
+    isExactLocation: Math.random() > 0.3
+  };
+}
 
-  for (const table of tables) {
-    try {
-      await (prisma as any)[table].deleteMany();
-      console.log(`✅ Cleared ${table}`);
-    } catch (error) {
-      console.log(`⚠️  Could not clear ${table}: ${error}`);
-    }
+async function seedCategories() {
+  console.log('Creating categories...');
+  
+  for (const cat of CATEGORIES) {
+    await prisma.category.upsert({
+      where: { id: cat.id },
+      update: {},
+      create: {
+        id: cat.id,
+        name: cat.name,
+        slug: cat.id,
+      }
+    });
   }
+  
+  console.log(`  Created ${CATEGORIES.length} categories`);
+}
 
-  // Create system configurations
-  console.log('⚙️ Creating system configurations...');
-  await prisma.configuration.createMany({
-    data: [
-      {
-        key: 'platform.commission.rate',
-        value: 0.10, // 10%
-        description: 'Platform commission rate',
-        isPublic: false,
-        isEditable: true,
-      },
-      {
-        key: 'trust.deposit.multipliers',
-        value: {
-          NEW: 2.0,
-          BASIC: 1.5,
-          VERIFIED: 1.0,
-          TRUSTED: 0.5,
-        },
-        description: 'Deposit multipliers based on trust level',
-        isPublic: true,
-        isEditable: true,
-      },
-      {
-        key: 'rental.limits',
-        value: {
-          NEW: 5000,
-          BASIC: 25000,
-          VERIFIED: 100000,
-          TRUSTED: 500000,
-        },
-        description: 'Maximum rental amounts per trust level (in ETB)',
-        isPublic: true,
-        isEditable: true,
-      },
-      {
-        key: 'payment.providers',
-        value: ['M_PESA', 'TELEBIRR', 'CBE_BIRR', 'HELLO_CASH', 'CASH'],
-        description: 'Available payment providers',
-        isPublic: true,
-        isEditable: true,
-      },
-      {
-        key: 'verification.required.for.listings',
-        value: {
-          VEHICLES: ['ID', 'PHYSICAL'],
-          HOUSES: ['ID', 'ADDRESS', 'PHYSICAL'],
-          MACHINERY: ['ID'],
-          DEFAULT: ['ID'],
-        },
-        description: 'Verification requirements by category',
-        isPublic: true,
-        isEditable: true,
-      },
-    ],
-  });
+async function seedUsers() {
+  console.log('Creating users...');
+  
+  const users = [];
 
-  // Create admin user
-  console.log('👑 Creating admin user...');
-  const adminPassword = await hash('Admin@2024!', 12);
+  // Admin user - email doesn't need to be unique for admin
   const admin = await prisma.user.create({
     data: {
-      phone: '+251911223344',
-      email: 'admin@rentalplatform.et',
       firstName: 'Admin',
       lastName: 'User',
-      passwordHash: adminPassword,
+      phone: '+251911111111',
+      email: 'admin@rentalplatform.com',
+      passwordHash: PASSWORD,
       role: 'ADMIN',
       trustLevel: 'TRUSTED',
-      trustScore: 100,
       verificationStatus: 'COMPLETE',
       phoneVerified: true,
       emailVerified: true,
       idVerified: true,
-      addressVerified: true,
-      physicalVerified: true,
-      verificationDate: new Date(),
       agreedToTerms: true,
       agreedToTermsAt: new Date(),
-      profile: {
-        create: {
-          bio: 'Platform Administrator',
-          languages: ['am', 'en'],
-          occupation: 'System Administrator',
-          education: 'MSc in Computer Science',
-          skills: ['Management', 'System Administration', 'Customer Support'],
-          region: 'ADDIS_ABABA',
-          city: 'ADDIS_ABABA',
-          subcity: 'Bole',
-          woreda: '08',
-          kebele: '04',
-          houseNumber: '123',
-          formattedAddress: 'Bole, Addis Ababa, Ethiopia',
-          latitude: 8.9806,
-          longitude: 38.7578,
-        },
-      },
-    },
+    }
   });
+  users.push(admin);
 
-  // Create categories
-  console.log('📂 Creating categories...');
-  const categories = await prisma.category.createMany({
-    data: [
-      {
-        name: 'Houses',
-        slug: 'houses',
-        icon: '🏠',
-        description: 'Residential properties for short-term rental',
-        minDepositMultiplier: 2.0,
-        maxDepositMultiplier: 3.0,
-        requiresVerification: true,
-        insuranceRequired: true,
-      },
-      {
-        name: 'Vehicles',
-        slug: 'vehicles',
-        icon: '🚗',
-        description: 'Cars, motorcycles, trucks, and other vehicles',
-        minDepositMultiplier: 1.5,
-        maxDepositMultiplier: 2.5,
-        requiresVerification: true,
-        insuranceRequired: true,
-      },
-      {
-        name: 'Tools',
-        slug: 'tools',
-        icon: '🛠️',
-        description: 'Hand tools, power tools, and gardening equipment',
-        minDepositMultiplier: 1.0,
-        maxDepositMultiplier: 2.0,
-        requiresVerification: false,
-        insuranceRequired: false,
-      },
-      {
-        name: 'Event Equipment',
-        slug: 'event-equipment',
-        icon: '🎪',
-        description: 'Chairs, tents, sound systems, and event supplies',
-        minDepositMultiplier: 1.0,
-        maxDepositMultiplier: 2.0,
-        requiresVerification: false,
-        insuranceRequired: true,
-      },
-      {
-        name: 'Machinery',
-        slug: 'machinery',
-        icon: '🏗️',
-        description: 'Construction, agricultural, and industrial equipment',
-        minDepositMultiplier: 1.5,
-        maxDepositMultiplier: 3.0,
-        requiresVerification: true,
-        insuranceRequired: true,
-      },
-      {
-        name: 'Electronics',
-        slug: 'electronics',
-        icon: '💻',
-        description: 'Cameras, laptops, audio equipment, and drones',
-        minDepositMultiplier: 1.0,
-        maxDepositMultiplier: 2.0,
-        requiresVerification: false,
-        insuranceRequired: false,
-      },
-      {
-        name: 'Other',
-        slug: 'other',
-        icon: '📦',
-        description: 'Miscellaneous items not fitting other categories',
-        minDepositMultiplier: 1.0,
-        maxDepositMultiplier: 2.0,
-        requiresVerification: false,
-        insuranceRequired: false,
-      },
-    ],
-  });
-
-  // Get created categories
-  const categoriesList = await prisma.category.findMany();
-
-  // Create 10 sample users (5 owners, 5 renters)
-  console.log('👥 Creating sample users...');
-  const users = [];
-  const userTypes = ['OWNER', 'RENTER'];
-  const trustLevels = ['NEW', 'BASIC', 'VERIFIED', 'TRUSTED'];
-  const ethiopianNames = [
-    { firstName: 'Abebe', lastName: 'Kebede' },
-    { firstName: 'Meron', lastName: 'Tesfaye' },
-    { firstName: 'Dawit', lastName: 'Hailu' },
-    { firstName: 'Sofia', lastName: 'Girma' },
-    { firstName: 'Yonas', lastName: 'Mulugeta' },
-    { firstName: 'Helen', lastName: 'Assefa' },
-    { firstName: 'Tewodros', lastName: 'Getachew' },
-    { firstName: 'Rahel', lastName: 'Abate' },
-    { firstName: 'Samuel', lastName: 'Mengistu' },
-    { firstName: 'Eyerusalem', lastName: 'Berhanu' },
-  ];
-
-  for (let i = 0; i < 10; i++) {
-    const name = ethiopianNames[i];
-    const phone = `+2519${10000000 + i}`;
-    const email = `${name.firstName.toLowerCase()}.${name.lastName.toLowerCase()}@example.com`;
-    const role = i < 5 ? 'OWNER' : 'RENTER';
-    const trustLevel = trustLevels[i % 4] as any;
-    const trustScore = trustLevel === 'NEW' ? 20 : 
-                       trustLevel === 'BASIC' ? 45 : 
-                       trustLevel === 'VERIFIED' ? 70 : 90;
-
-    const password = await hash('Password123!', 12);
-    
+  // Owners (8 users) - add index to make email unique
+  for (let i = 0; i < 8; i++) {
+    const firstName = randomItem(FIRST_NAMES);
+    const lastName = randomItem(LAST_NAMES);
     const user = await prisma.user.create({
       data: {
-        phone,
-        email,
-        firstName: name.firstName,
-        lastName: name.lastName,
-        passwordHash: password,
-        role,
-        trustLevel,
-        trustScore,
-        verificationStatus: trustLevel === 'NEW' ? 'PENDING' : 'COMPLETE',
+        firstName,
+        lastName,
+        phone: randomPhone(),
+        email: randomEmail(firstName, lastName, i + 100),
+        passwordHash: PASSWORD,
+        role: 'OWNER',
+        trustLevel: randomItem(['BASIC', 'VERIFIED', 'TRUSTED']),
+        verificationStatus: 'COMPLETE',
         phoneVerified: true,
         emailVerified: true,
-        idVerified: trustLevel !== 'NEW',
-        addressVerified: ['VERIFIED', 'TRUSTED'].includes(trustLevel),
-        physicalVerified: trustLevel === 'TRUSTED',
-        verificationDate: trustLevel === 'NEW' ? null : new Date(),
+        idVerified: Math.random() > 0.3,
         agreedToTerms: true,
         agreedToTermsAt: new Date(),
-        totalTransactions: i * 3,
-        totalSpent: i * 5000,
-        totalEarned: i < 5 ? i * 10000 : 0,
-        averageRating: 4.0 + (i * 0.1),
-        responseRate: 80 + (i * 2),
-        profile: {
-          create: {
-            bio: faker.lorem.paragraph(),
-            languages: ['am', 'en'],
-            occupation: faker.person.jobTitle(),
-            education: faker.person.jobArea(),
-            skills: [faker.person.jobType(), faker.person.jobType()],
-            region: 'ADDIS_ABABA',
-            city: 'ADDIS_ABABA',
-            subcity: ['Bole', 'Kirkos', 'Arada', 'Lideta', 'Nifas Silk'][i % 5],
-            woreda: (i % 8 + 1).toString(),
-            kebele: (i % 4 + 1).toString(),
-            houseNumber: (i + 100).toString(),
-            landmark: faker.location.streetAddress(),
-            formattedAddress: faker.location.streetAddress(),
-            latitude: 8.9806 + (i * 0.01),
-            longitude: 38.7578 + (i * 0.01),
-          },
-        },
-      },
+      }
     });
     users.push(user);
   }
 
-  // Create sample listings for owners
-  console.log('🏠 Creating sample listings...');
-  const listings = [];
-  const owners = users.filter(u => u.role === 'OWNER');
-  
-  for (const owner of owners) {
-    // Each owner gets 2-3 listings
-    const listingCount = 2 + Math.floor(Math.random() * 2);
-    
-    for (let j = 0; j < listingCount; j++) {
-      const category = categoriesList[Math.floor(Math.random() * categoriesList.length)];
-      const isVehicle = category.slug === 'vehicles';
-      const isHouse = category.slug === 'houses';
-      
-      const listing = await prisma.listing.create({
-        data: {
-          ownerId: owner.id,
-          categoryId: category.id,
-          title: `${category.name}: ${faker.commerce.productName()}`,
-          slug: `${category.slug}-${faker.string.alphanumeric(8).toLowerCase()}`,
-          description: faker.lorem.paragraphs(3),
-          shortDescription: faker.lorem.sentence(),
-          pricePerDay: isVehicle ? 2000 : isHouse ? 5000 : 500 + Math.random() * 1000,
-          pricePerWeek: isVehicle ? 12000 : isHouse ? 30000 : 3000 + Math.random() * 5000,
-          pricePerMonth: isVehicle ? 40000 : isHouse ? 100000 : 10000 + Math.random() * 20000,
-          currency: 'ETB',
-          minimumRentalDays: 1,
-          maximumRentalDays: isHouse ? 90 : 30,
-          discountWeekly: 10,
-          discountMonthly: 20,
-          locationRegion: 'ADDIS_ABABA',
-          locationCity: 'ADDIS_ABABA',
-          locationSubcity: ['Bole', 'Kirkos', 'Arada'][Math.floor(Math.random() * 3)],
-          locationWoreda: (Math.floor(Math.random() * 8) + 1).toString(),
-          locationKebele: (Math.floor(Math.random() * 4) + 1).toString(),
-          locationFormatted: faker.location.streetAddress(),
-          isExactLocation: false,
-          latitude: 8.9806 + (Math.random() * 0.05),
-          longitude: 38.7578 + (Math.random() * 0.05),
-          condition: ['NEW', 'LIKE_NEW', 'EXCELLENT', 'GOOD'][Math.floor(Math.random() * 4)] as any,
-          yearOfManufacture: isVehicle ? 2018 + Math.floor(Math.random() * 6) : null,
-          brand: isVehicle ? ['Toyota', 'Mitsubishi', 'Hyundai'][Math.floor(Math.random() * 3)] : null,
-          model: isVehicle ? faker.vehicle.model() : null,
-          specifications: isVehicle ? {
-            transmission: ['Automatic', 'Manual'][Math.floor(Math.random() * 2)],
-            fuelType: ['Petrol', 'Diesel'][Math.floor(Math.random() * 2)],
-            seats: 5,
-          } : {},
-          availabilityType: 'CALENDAR',
-          advanceNoticeHours: 24,
-          sameDayBooking: false,
-          instantBooking: true,
-          minTrustLevel: ['NEW', 'BASIC', 'VERIFIED'][Math.floor(Math.random() * 3)] as any,
-          requiresGuarantors: Math.floor(Math.random() * 3),
-          requiresPhysicalVerification: isVehicle || isHouse,
-          requiresIdVerification: true,
-          requiresDeposit: true,
-          insuranceIncluded: isVehicle || isHouse,
-          insuranceDetails: isVehicle || isHouse ? {
-            provider: 'Nyala Insurance',
-            coverage: 'Third Party',
-            validUntil: addDays(new Date(), 365),
-          } : null,
-          deliveryAvailable: !isVehicle && !isHouse,
-          deliveryFee: !isVehicle && !isHouse ? 200 : null,
-          deliveryRadius: !isVehicle && !isHouse ? 10 : null,
-          pickupRequired: true,
-          rules: [
-            'No smoking',
-            'Return in same condition',
-            'Report any issues immediately',
-          ],
-          cancellationPolicy: {
-            type: 'MODERATE',
-            description: 'Full refund 7 days before, 50% refund 3 days before',
-            refundPercentage: {
-              days7: 100,
-              days3: 50,
-              days1: 25,
-              day0: 0,
-            },
-            gracePeriodHours: 24,
-          },
-          damagePolicy: {
-            depositRequired: true,
-            depositAmount: 5000,
-            wearAndTear: 'Normal wear and tear accepted',
-            damageCategories: {
-              minor: { description: 'Small scratches', maxCharge: 1000 },
-              moderate: { description: 'Dents or broken parts', maxCharge: 5000 },
-              major: { description: 'Major damage', maxCharge: 20000 },
-            },
-          },
-          status: 'ACTIVE',
-          isFeatured: j === 0, // First listing is featured
-          isVerified: true,
-          verificationDate: new Date(),
-          views: Math.floor(Math.random() * 1000),
-          saves: Math.floor(Math.random() * 100),
-          bookingsCount: Math.floor(Math.random() * 20),
-          averageRating: 4.0 + (Math.random() * 1.0),
-          responseRate: 80 + (Math.random() * 20),
-          responseTime: 30 + Math.floor(Math.random() * 60),
-          publishedAt: subDays(new Date(), Math.floor(Math.random() * 30)),
-        },
-      });
-
-      // Add images to listing
-      await prisma.listingImage.createMany({
-        data: [
-          {
-            listingId: listing.id,
-            url: `https://picsum.photos/seed/${listing.id}-1/800/600`,
-            thumbnailUrl: `https://picsum.photos/seed/${listing.id}-1/200/150`,
-            isPrimary: true,
-            caption: 'Main image',
-            order: 0,
-            verified: true,
-          },
-          {
-            listingId: listing.id,
-            url: `https://picsum.photos/seed/${listing.id}-2/800/600`,
-            thumbnailUrl: `https://picsum.photos/seed/${listing.id}-2/200/150`,
-            isPrimary: false,
-            caption: 'Additional view',
-            order: 1,
-            verified: true,
-          },
-        ],
-      });
-
-      // Add availability slots for next 30 days
-      const availabilitySlots = [];
-      for (let k = 0; k < 30; k++) {
-        const date = addDays(new Date(), k);
-        // Make 20% of dates unavailable
-        const available = Math.random() > 0.2;
-        
-        availabilitySlots.push({
-          listingId: listing.id,
-          date,
-          available,
-          price: available ? null : 0, // Custom price for unavailable dates
-          notes: !available ? 'Already booked' : null,
-        });
+  // Renters (12 users) - add index to make email unique
+  for (let i = 0; i < 12; i++) {
+    const firstName = randomItem(FIRST_NAMES);
+    const lastName = randomItem(LAST_NAMES);
+    const user = await prisma.user.create({
+      data: {
+        firstName,
+        lastName,
+        phone: randomPhone(),
+        email: randomEmail(firstName, lastName, i + 200),
+        passwordHash: PASSWORD,
+        role: 'RENTER',
+        trustLevel: randomItem(['NEW', 'BASIC', 'VERIFIED']),
+        verificationStatus: 'COMPLETE',
+        phoneVerified: true,
+        emailVerified: Math.random() > 0.3,
+        idVerified: Math.random() > 0.5,
+        agreedToTerms: true,
+        agreedToTermsAt: new Date(),
       }
-      
-      await prisma.availabilitySlot.createMany({
-        data: availabilitySlots,
-      });
-
-      listings.push(listing);
-    }
+    });
+    users.push(user);
   }
 
-  // Create sample bookings
-  console.log('📅 Creating sample bookings...');
-  const renters = users.filter(u => u.role === 'RENTER');
+  console.log(`  Created ${users.length} users`);
+  return users;
+}
+
+async function seedProfiles(users: any[]) {
+  console.log('Creating user profiles...');
   
-  for (let i = 0; i < 10; i++) {
-    const renter = renters[i % renters.length];
-    const listing = listings[Math.floor(Math.random() * listings.length)];
-    const owner = users.find(u => u.id === listing.ownerId)!;
+  let created = 0;
+  for (const user of users) {
+    if (user.role !== 'ADMIN') {
+      const location = randomLocation();
+      await prisma.userProfile.upsert({
+        where: { userId: user.id },
+        update: {},
+        create: {
+          userId: user.id,
+          bio: `${user.role === 'OWNER' ? 'I love sharing my items' : 'I love renting quality items'} on this platform.`,
+          languages: ['Amharic', 'English'],
+          occupation: user.role === 'OWNER' ? 'Business Owner' : 'Professional',
+          education: 'University Graduate',
+          skills: ['Communication', 'Reliable', 'Trustworthy'],
+          region: location.region,
+          city: location.city,
+          subcity: location.subcity,
+          woreda: location.woreda,
+          kebele: location.kebele,
+          houseNumber: `${Math.floor(Math.random() * 999) + 1}`,
+          formattedAddress: location.formattedAddress,
+          secondaryPhone: Math.random() > 0.5 ? randomPhone() : null,
+          preferences: {},
+        }
+      });
+      created++;
+    }
+  }
+  console.log(`  Created/Updated ${created} profiles`);
+}
+
+async function seedListings(users: any[]) {
+  console.log('Creating listings...');
+  
+  const owners = users.filter(u => u.role === 'OWNER');
+  const listings = [];
+  const listingCount = 50;
+
+  for (let i = 0; i < listingCount; i++) {
+    const owner = randomItem(owners);
+    const category = randomItem(CATEGORIES);
+    const title = randomItem(LISTING_TITLES[category.id] || LISTING_TITLES.electronics);
+    const pricePerDay = Math.floor(Math.random() * 2000) + 200;
+    const conditions = ['NEW', 'LIKE_NEW', 'GOOD', 'FAIR'];
+    const statuses = ['ACTIVE', 'ACTIVE', 'ACTIVE', 'PENDING_REVIEW'];
+    const location = randomLocation();
     
-    const startDate = addDays(new Date(), Math.floor(Math.random() * 7) + 1);
-    const endDate = addDays(startDate, Math.floor(Math.random() * 7) + 1);
-    const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24));
-    const dailyRate = listing.pricePerDay;
-    const totalAmount = dailyRate * totalDays;
-    const depositMultiplier = renter.trustLevel === 'NEW' ? 2.0 : 
-                              renter.trustLevel === 'BASIC' ? 1.5 : 
-                              renter.trustLevel === 'VERIFIED' ? 1.0 : 0.5;
-    const depositAmount = totalAmount * depositMultiplier;
-    const platformFee = totalAmount * 0.10;
-    const insuranceFee = listing.insuranceIncluded ? totalAmount * 0.05 : null;
+    const listing = await prisma.listing.create({
+      data: {
+        ownerId: owner.id,
+        categoryId: category.id,
+        title,
+        slug: `${title.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}-${i}`,
+        description: `Professional ${title} available for rent. Perfect for ${category.name.toLowerCase()} enthusiasts. Well maintained and ready to use.`,
+        shortDescription: `Rent ${title} - ${randomItem(conditions)} condition`,
+        pricePerDay,
+        pricePerWeek: pricePerDay * 6,
+        pricePerMonth: pricePerDay * 20,
+        currency: 'ETB',
+        minimumRentalDays: Math.floor(Math.random() * 3) + 1,
+        maximumRentalDays: 365,
+        discountWeekly: 10,
+        discountMonthly: 15,
+        locationRegion: location.region,
+        locationCity: location.city,
+        locationSubcity: location.subcity,
+        locationWoreda: location.woreda,
+        locationKebele: location.kebele,
+        locationFormatted: location.formattedAddress,
+        isExactLocation: location.isExactLocation,
+        condition: randomItem(conditions) as any,
+        yearOfManufacture: 2020 + Math.floor(Math.random() * 4),
+        brand: title.split(' ')[0],
+        model: title.split(' ')[1] || 'Pro',
+        specifications: {},
+        availabilityType: 'CALENDAR',
+        advanceNoticeHours: 24,
+        sameDayBooking: Math.random() > 0.5,
+        instantBooking: Math.random() > 0.7,
+        minTrustLevel: randomItem(['NEW', 'BASIC', 'VERIFIED']),
+        requiresGuarantors: Math.random() > 0.8 ? 1 : 0,
+        requiresIdVerification: Math.random() > 0.6,
+        requiresDeposit: Math.random() > 0.5,
+        deliveryAvailable: Math.random() > 0.5,
+        deliveryFee: Math.random() > 0.5 ? Math.floor(Math.random() * 500) + 50 : null,
+        pickupRequired: true,
+        rules: ['No smoking', 'Return on time', 'Handle with care'],
+        status: randomItem(statuses) as any,
+        isFeatured: Math.random() > 0.8,
+        views: Math.floor(Math.random() * 500),
+        saves: Math.floor(Math.random() * 100),
+        publishedAt: new Date(),
+      }
+    });
+    
+    listings.push(listing);
+    
+    await prisma.listingImage.create({
+      data: {
+        listingId: listing.id,
+        url: `https://picsum.photos/seed/${listing.id}/800/600`,
+        thumbnailUrl: `https://picsum.photos/seed/${listing.id}/200/150`,
+        isPrimary: true,
+        order: 0,
+        verified: true,
+      }
+    });
+  }
+  
+  console.log(`  Created ${listings.length} listings`);
+  return listings;
+}
+
+async function seedBookings(users: any[], listings: any[]) {
+  console.log('Creating bookings...');
+  
+  const renters = users.filter(u => u.role === 'RENTER');
+  const bookings = [];
+  const statuses = ['PENDING', 'CONFIRMED', 'COMPLETED', 'COMPLETED', 'COMPLETED', 'CANCELLED'];
+  
+  for (let i = 0; i < 60; i++) {
+    const renter = randomItem(renters);
+    const listing = randomItem(listings);
+    const status = randomItem(statuses);
+    
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() + Math.floor(Math.random() * 30) - 15);
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + Math.floor(Math.random() * 7) + 1);
+    
+    const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    const totalAmount = totalDays * listing.pricePerDay;
     
     const booking = await prisma.booking.create({
       data: {
         listingId: listing.id,
         renterId: renter.id,
-        ownerId: owner.id,
-        bookingCode: `BOOK${String(i + 1).padStart(6, '0')}`,
+        ownerId: listing.ownerId,
+        bookingCode: `BK-${Date.now()}-${i}`,
         startDate,
         endDate,
         totalDays,
-        dailyRate,
+        dailyRate: listing.pricePerDay,
         totalAmount,
-        depositAmount,
-        platformFee,
-        insuranceFee,
-        deliveryFee: listing.deliveryFee,
-        paymentStatus: ['PENDING', 'COMPLETED'][Math.floor(Math.random() * 2)] as any,
-        paymentMethod: ['MOBILE_MONEY', 'CASH'][Math.floor(Math.random() * 2)] as any,
-        paymentProvider: ['M_PESA', 'TELEBIRR'][Math.floor(Math.random() * 2)],
-        paymentReference: `PAY${String(i + 1).padStart(8, '0')}`,
-        status: ['PENDING', 'CONFIRMED', 'ACTIVE', 'COMPLETED'][Math.floor(Math.random() * 4)] as any,
+        depositAmount: totalAmount * 0.2,
+        platformFee: totalAmount * 0.05,
+        status: status as any,
         renterTrustLevel: renter.trustLevel,
-        guarantorsRequired: listing.requiresGuarantors,
-        guarantorsConfirmed: Math.floor(Math.random() * (listing.requiresGuarantors + 1)),
-        physicalVerificationRequired: listing.requiresPhysicalVerification,
-        physicalVerificationCompleted: Math.random() > 0.5,
-        pickupLocation: listing.pickupLocation,
-        deliveryLocation: faker.location.streetAddress(),
-        handoverNotes: 'Please bring ID',
-        createdAt: subDays(new Date(), Math.floor(Math.random() * 30)),
-        confirmedAt: Math.random() > 0.3 ? subDays(new Date(), Math.floor(Math.random() * 20)) : null,
-        cancelledAt: Math.random() > 0.8 ? subDays(new Date(), Math.floor(Math.random() * 10)) : null,
-        startedAt: Math.random() > 0.5 ? subDays(new Date(), Math.floor(Math.random() * 5)) : null,
-        completedAt: Math.random() > 0.7 ? subDays(new Date(), Math.floor(Math.random() * 2)) : null,
-      },
-    });
-
-    // Create payment record for completed payments
-    if (booking.paymentStatus === 'COMPLETED') {
-      await prisma.payment.create({
-        data: {
-          bookingId: booking.id,
-          userId: renter.id,
-          amount: booking.totalAmount + booking.depositAmount,
-          fee: booking.platformFee,
-          netAmount: booking.totalAmount + booking.depositAmount - booking.platformFee,
-          method: booking.paymentMethod!,
-          provider: booking.paymentProvider!,
-          transactionId: `TX${String(i + 1).padStart(10, '0')}`,
-          reference: booking.paymentReference!,
-          isEscrow: true,
-          escrowReleaseDate: booking.completedAt ? addDays(booking.completedAt, 2) : null,
-          status: 'COMPLETED',
-          completedAt: booking.confirmedAt,
-        },
-      });
-    }
-
-    // Create reviews for completed bookings
-    if (booking.status === 'COMPLETED' && booking.completedAt) {
-      // Renter reviews owner
-      await prisma.review.create({
-        data: {
-          bookingId: booking.id,
-          reviewerId: renter.id,
-          revieweeId: owner.id,
-          role: 'RENTER',
-          rating: 4 + Math.random(),
-          communication: 4 + Math.random(),
-          reliability: 4 + Math.random(),
-          itemCondition: 4 + Math.random(),
-          valueForMoney: 4 + Math.random(),
-          title: 'Great experience',
-          comment: faker.lorem.sentences(2),
-          isPublic: true,
-        },
-      });
-
-      // Owner reviews renter (50% chance)
-      if (Math.random() > 0.5) {
-        await prisma.review.create({
-          data: {
-            bookingId: booking.id,
-            reviewerId: owner.id,
-            revieweeId: renter.id,
-            role: 'OWNER',
-            rating: 4 + Math.random(),
-            communication: 4 + Math.random(),
-            reliability: 4 + Math.random(),
-            title: 'Good renter',
-            comment: faker.lorem.sentences(1),
-            isPublic: true,
-          },
-        });
+        createdAt: randomDate(new Date(2024, 0, 1), new Date()),
       }
-    }
-  }
-
-  // Create wallets for users
-  console.log('💰 Creating wallets...');
-  for (const user of users) {
-    await prisma.wallet.create({
-      data: {
-        userId: user.id,
-        availableBalance: user.role === 'OWNER' ? user.totalEarned * 0.8 : 0,
-        pendingBalance: user.role === 'OWNER' ? user.totalEarned * 0.2 : 0,
-        escrowBalance: user.role === 'OWNER' ? user.totalEarned * 0.1 : 0,
-        withdrawalThreshold: 1000,
-        autoWithdrawal: false,
-        preferredMethod: 'MOBILE_MONEY',
-        preferredProvider: 'M_PESA',
-        totalDeposits: user.totalSpent,
-        totalWithdrawals: user.role === 'OWNER' ? user.totalEarned * 0.5 : 0,
-        totalEarnings: user.totalEarned,
-      },
     });
-  }
-
-  // Create sample agents
-  console.log('🤝 Creating sample agents...');
-  for (let i = 0; i < 3; i++) {
-    const agentUser = await prisma.user.create({
-      data: {
-        phone: `+2519${20000000 + i}`,
-        email: `agent${i + 1}@rentalplatform.et`,
-        firstName: ['Samuel', 'Rahel', 'Daniel'][i],
-        lastName: ['Agent', 'Representative', 'Officer'][i],
-        passwordHash: await hash('Agent123!', 12),
-        role: 'AGENT',
-        trustLevel: 'TRUSTED',
-        trustScore: 95,
-        verificationStatus: 'COMPLETE',
-        phoneVerified: true,
-        emailVerified: true,
-        idVerified: true,
-        addressVerified: true,
-        physicalVerified: true,
-        verificationDate: new Date(),
-        agreedToTerms: true,
-        agreedToTermsAt: new Date(),
-        profile: {
-          create: {
-            bio: `Certified Rental Platform Agent in ${['Bole', 'Kirkos', 'Arada'][i]}`,
-            languages: ['am', 'en'],
-            occupation: 'Platform Agent',
-            education: 'Business Administration',
-            skills: ['Verification', 'Customer Service', 'Conflict Resolution'],
-            region: 'ADDIS_ABABA',
-            city: 'ADDIS_ABABA',
-            subcity: ['Bole', 'Kirkos', 'Arada'][i],
-            woreda: (i + 1).toString(),
-            kebele: '01',
-            houseNumber: (i + 200).toString(),
-            formattedAddress: `${['Bole', 'Kirkos', 'Arada'][i]}, Addis Ababa`,
-            latitude: 8.9806 + (i * 0.02),
-            longitude: 38.7578 + (i * 0.02),
-          },
-        },
-      },
-    });
-
-    await prisma.agent.create({
-      data: {
-        userId: agentUser.id,
-        agentCode: `AGT${String(i + 1).padStart(4, '0')}`,
-        type: 'INDIVIDUAL',
-        businessName: `${['Samuel', 'Rahel', 'Daniel'][i]} Agent Services`,
-        operatingRegion: 'ADDIS_ABABA',
-        operatingCity: 'ADDIS_ABABA',
-        address: `${['Bole', 'Kirkos', 'Arada'][i]}, Addis Ababa`,
-        latitude: 8.9806 + (i * 0.02),
-        longitude: 38.7578 + (i * 0.02),
-        services: ['VERIFICATION', 'CASH_COLLECTION', 'DISPUTE_MEDIATION'],
-        serviceRadius: 10,
-        status: 'ACTIVE',
-        approvalDate: subDays(new Date(), 30 + i),
-        commissionRate: 0.02,
-        totalTransactions: 10 + i * 5,
-        totalCommission: (10 + i * 5) * 100,
-        averageRating: 4.5 + (i * 0.1),
-        completionRate: 95,
-      },
-    });
-  }
-
-  // Create trust logs for users
-  console.log('📊 Creating trust logs...');
-  for (const user of users) {
-    const logs = [];
-    let currentScore = 0;
-    let currentLevel = 'NEW';
-    
-    // Create 3-5 trust updates per user
-    const logCount = 3 + Math.floor(Math.random() * 3);
-    
-    for (let j = 0; j < logCount; j++) {
-      const newScore = Math.min(user.trustScore, currentScore + 10 + Math.random() * 30);
-      const newLevel = newScore >= 80 ? 'TRUSTED' : 
-                       newScore >= 60 ? 'VERIFIED' : 
-                       newScore >= 30 ? 'BASIC' : 'NEW';
-      
-      logs.push({
-        userId: user.id,
-        oldLevel: currentLevel as any,
-        newLevel: newLevel as any,
-        oldScore: currentScore,
-        newScore,
-        scoreDelta: newScore - currentScore,
-        reason: j === 0 ? 'INITIAL' : 
-                j === 1 ? 'VERIFICATION_COMPLETE' : 
-                j === 2 ? 'SUCCESSFUL_TRANSACTION' : 
-                'POSITIVE_REVIEW',
-        reasonDetails: j === 0 ? 'Initial trust score' : 
-                       j === 1 ? 'Completed ID verification' : 
-                       j === 2 ? 'Completed first rental' : 
-                       'Received positive review',
-        triggeredBy: j === 0 ? 'SYSTEM' : 'SYSTEM',
-        metadata: {},
-        createdAt: subDays(new Date(), (logCount - j) * 7),
-      });
-      
-      currentScore = newScore;
-      currentLevel = newLevel;
-    }
-    
-    await prisma.trustLog.createMany({
-      data: logs,
-    });
-  }
-
-  // Create sample notifications
-  console.log('🔔 Creating sample notifications...');
-  const notifications = [];
-  
-  for (const user of users.slice(0, 5)) { // First 5 users get notifications
-    for (let j = 0; j < 3; j++) {
-      notifications.push({
-        userId: user.id,
-        type: ['BOOKING_REQUEST', 'PAYMENT_RECEIVED', 'TRUST_LEVEL_UP'][j],
-        title: ['New Booking Request', 'Payment Received', 'Trust Level Increased'][j],
-        message: [
-          'You have a new booking request for your listing',
-          'Your payment of ETB 5,000 has been received',
-          'Congratulations! Your trust level has increased to VERIFIED',
-        ][j],
-        channels: ['IN_APP', 'EMAIL'],
-        emailSent: true,
-        smsSent: false,
-        pushSent: false,
-        inAppSent: true,
-        isRead: j > 0,
-        readAt: j > 0 ? subDays(new Date(), j) : null,
-        createdAt: subDays(new Date(), j + 1),
-      });
-    }
+    bookings.push(booking);
   }
   
-  await prisma.notification.createMany({
-    data: notifications,
-  });
-
-  // Create sample messages
-  console.log('💬 Creating sample messages...');
-  const bookings = await prisma.booking.findMany({ take: 5 });
-  
-  for (const booking of bookings) {
-    for (let j = 0; j < 3; j++) {
-      const isFromRenter = j % 2 === 0;
-      const senderId = isFromRenter ? booking.renterId : booking.ownerId;
-      const receiverId = isFromRenter ? booking.ownerId : booking.renterId;
-      
-      await prisma.message.create({
-        data: {
-          senderId,
-          receiverId,
-          bookingId: booking.id,
-          content: [
-            'Hello, I would like to ask about the availability',
-            'Yes, it is available for those dates',
-            'Perfect, I will proceed with the booking',
-          ][j],
-          messageType: 'TEXT',
-          isRead: j < 2,
-          readAt: j < 2 ? new Date() : null,
-          createdAt: subDays(new Date(), 3 - j),
-        },
-      });
-    }
-  }
-
-  console.log('🎉 Database seed completed successfully!');
-  console.log('\n📊 Seed Summary:');
-  console.log(`✅ ${(await prisma.user.count())} users created`);
-  console.log(`✅ ${(await prisma.category.count())} categories created`);
-  console.log(`✅ ${(await prisma.listing.count())} listings created`);
-  console.log(`✅ ${(await prisma.booking.count())} bookings created`);
-  console.log(`✅ ${(await prisma.review.count())} reviews created`);
-  console.log(`✅ ${(await prisma.agent.count())} agents created`);
-  console.log(`✅ ${(await prisma.notification.count())} notifications created`);
-  console.log(`✅ ${(await prisma.message.count())} messages created`);
-  console.log(`\n👑 Admin Login:`);
-  console.log(`📱 Phone: +251911223344`);
-  console.log(`🔑 Password: Admin@2024!`);
-  console.log(`📧 Email: admin@rentalplatform.et`);
-  console.log(`\n🔗 Prisma Studio: http://localhost:5555`);
+  console.log(`  Created ${bookings.length} bookings`);
+  return bookings;
 }
 
-main()
-  .catch((error) => {
-    console.error('❌ Error seeding database:', error);
+async function seedReviews(users: any[], listings: any[], bookings: any[]) {
+  console.log('Creating reviews...');
+  
+  let created = 0;
+  
+  for (let i = 0; i < 40 && i < bookings.length; i++) {
+    const booking = bookings[i];
+    const rating = Math.floor(Math.random() * 5) + 1;
+    const ratingGroup = rating as keyof typeof REVIEW_COMMENTS;
+    
+    await prisma.review.create({
+      data: {
+        bookingId: booking.id,
+        reviewerId: booking.renterId,
+        revieweeId: booking.ownerId,
+        listingId: booking.listingId,
+        role: 'RENTER',
+        rating,
+        comment: randomItem(REVIEW_COMMENTS[ratingGroup]),
+        isPublic: true,
+        createdAt: randomDate(new Date(2024, 0, 1), new Date()),
+      }
+    });
+    created++;
+  }
+  
+  console.log(`  Created ${created} reviews`);
+}
+
+async function seedConversationsAndMessages(users: any[]) {
+  console.log('Creating conversations and messages...');
+  
+  let conversationsCreated = 0;
+  let messagesCreated = 0;
+  
+  for (let i = 0; i < 20; i++) {
+    const user1 = randomItem(users);
+    let user2 = randomItem(users);
+    while (user2.id === user1.id) {
+      user2 = randomItem(users);
+    }
+    
+    const conversation = await prisma.conversation.create({
+      data: {
+        participants: {
+          connect: [{ id: user1.id }, { id: user2.id }]
+        }
+      }
+    });
+    conversationsCreated++;
+    
+    const messageCount = Math.floor(Math.random() * 8) + 3;
+    let lastMessageId = null;
+    
+    for (let j = 0; j < messageCount; j++) {
+      const sender = j % 2 === 0 ? user1 : user2;
+      const receiver = j % 2 === 0 ? user2 : user1;
+      const isRead = j < messageCount - (Math.random() > 0.5 ? 1 : 2);
+      
+      const message = await prisma.message.create({
+        data: {
+          conversationId: conversation.id,
+          senderId: sender.id,
+          receiverId: receiver.id,
+          content: randomItem(MESSAGES),
+          isRead,
+          readAt: isRead ? new Date() : null,
+          createdAt: new Date(Date.now() - (messageCount - j) * 3600000)
+        }
+      });
+      messagesCreated++;
+      lastMessageId = message.id;
+    }
+    
+    await prisma.conversation.update({
+      where: { id: conversation.id },
+      data: { lastMessageId, updatedAt: new Date() }
+    });
+  }
+  
+  console.log(`  Created ${conversationsCreated} conversations with ${messagesCreated} messages`);
+}
+
+async function seedNotifications(users: any[]) {
+  console.log('Creating notifications...');
+  
+  const types = ['BOOKING_REQUEST', 'BOOKING_CONFIRMED', 'PAYMENT_RECEIVED', 'NEW_REVIEW', 'MESSAGE_RECEIVED'];
+  let created = 0;
+  
+  for (const user of users) {
+    const notificationCount = Math.floor(Math.random() * 5) + 2;
+    
+    for (let i = 0; i < notificationCount; i++) {
+      const type = randomItem(types);
+      let title = '';
+      let message = '';
+      
+      switch (type) {
+        case 'BOOKING_REQUEST':
+          title = 'New Booking Request';
+          message = 'Someone wants to book your item';
+          break;
+        case 'BOOKING_CONFIRMED':
+          title = 'Booking Confirmed';
+          message = 'Your booking has been confirmed';
+          break;
+        case 'PAYMENT_RECEIVED':
+          title = 'Payment Received';
+          message = 'Payment received successfully';
+          break;
+        case 'NEW_REVIEW':
+          title = 'New Review';
+          message = 'Someone left you a review';
+          break;
+        case 'MESSAGE_RECEIVED':
+          title = 'New Message';
+          message = 'You have a new message';
+          break;
+      }
+      
+      await prisma.notification.create({
+        data: {
+          userId: user.id,
+          type: type as any,
+          title,
+          message,
+          data: {},
+          channels: ['IN_APP'],
+          isRead: Math.random() > 0.4,
+          createdAt: randomDate(new Date(2024, 0, 1), new Date()),
+        }
+      });
+      created++;
+    }
+  }
+  
+  console.log(`  Created ${created} notifications`);
+}
+
+async function main() {
+  const startTime = Date.now();
+  
+  try {
+    console.log('Starting database seeding...');
+    console.log('=================================');
+    
+    await seedCategories();
+    const users = await seedUsers();
+    await seedProfiles(users);
+    const listings = await seedListings(users);
+    const bookings = await seedBookings(users, listings);
+    await seedReviews(users, listings, bookings);
+    await seedConversationsAndMessages(users);
+    await seedNotifications(users);
+    
+    const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+    
+    console.log('=================================');
+    console.log(`Seed completed in ${duration}s`);
+    console.log('\nSummary:');
+    console.log(`   Users: ${users.length}`);
+    console.log(`   Listings: ${listings.length}`);
+    console.log(`   Bookings: ${bookings.length}`);
+    console.log(`   Reviews: 40`);
+    console.log(`   Conversations: 20`);
+    console.log(`   Notifications: ~80`);
+    console.log('\nTest Credentials:');
+    console.log(`   Password for all users: ${PASSWORD}`);
+    console.log('   Admin user: +251911111111 / admin@rentalplatform.com');
+    console.log('\n✅ All passwords will be automatically hashed by Prisma middleware!');
+    
+  } catch (err) {
+    console.error('\nSeeding failed:', err);
     process.exit(1);
-  })
-  .finally(async () => {
+  } finally {
     await prisma.$disconnect();
-  });
+  }
+}
+
+main();

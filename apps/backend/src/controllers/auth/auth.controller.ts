@@ -63,19 +63,19 @@ export class AuthController {
 
   async login(req: Request, res: Response) {
     try {
+      console.log('📝 Login request body:', req.body);
+      
       const validatedData: LoginDto = loginDto.parse(req.body);
-
-      const phoneString =
-        typeof validatedData.phone === 'string'
-          ? validatedData.phone
-          : (validatedData.phone as any).formatted || (validatedData.phone as any).number;
+      console.log('✅ Validated data:', validatedData);
 
       const result = await this.authService.login(
-        phoneString,
+        validatedData.identifier,
         validatedData.password,
         validatedData.deviceId
       );
 
+      console.log('📊 Login result:', result.success);
+      
       if (!result.success) {
         return res.status(401).json({
           success: false,
@@ -83,31 +83,12 @@ export class AuthController {
         });
       }
 
-      // Sync the user with UserService
-      if (result.user) {
-        this.userService.syncUser(result.user);
-      }
-
-      return res.status(200).json({
-        success: true,
-        message: 'Login successful',
-        data: {
-          user: result.user,
-          tokens: result.tokens,
-        },
-      });
+      // ... rest
     } catch (error) {
-      if (error instanceof Error) {
-        return res.status(401).json({
-          success: false,
-          error: error.message,
-        });
-      }
-      return res.status(500).json({
+      console.error('Login error:', error);
+      return res.status(401).json({
         success: false,
-        error: 'Internal server error',
+        error: error instanceof Error ? error.message : 'Login failed',
       });
     }
-  }
-
-}
+  }}

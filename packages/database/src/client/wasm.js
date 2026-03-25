@@ -549,11 +549,19 @@ exports.Prisma.DisputeMessageScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.ConversationScalarFieldEnum = {
+  id: 'id',
+  lastMessageId: 'lastMessageId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.MessageScalarFieldEnum = {
   id: 'id',
   senderId: 'senderId',
   receiverId: 'receiverId',
   bookingId: 'bookingId',
+  conversationId: 'conversationId',
   content: 'content',
   messageType: 'messageType',
   attachments: 'attachments',
@@ -845,6 +853,7 @@ exports.Prisma.ModelName = {
   Review: 'Review',
   Dispute: 'Dispute',
   DisputeMessage: 'DisputeMessage',
+  Conversation: 'Conversation',
   Message: 'Message',
   Notification: 'Notification',
   Agent: 'Agent',

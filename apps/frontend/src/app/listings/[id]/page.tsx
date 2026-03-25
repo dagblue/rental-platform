@@ -21,7 +21,7 @@ import {
   User
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useAuth } from '@/contexts/AuthContext'; // Add this import
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function PublicListingPage() {
   const [listing, setListing] = useState<Listing | null>(null);
@@ -30,7 +30,7 @@ export default function PublicListingPage() {
   const params = useParams();
   const router = useRouter();
   const listingId = params.id as string;
-  const { user } = useAuth(); // Add this
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchListing();
@@ -49,21 +49,17 @@ export default function PublicListingPage() {
     }
   };
 
-  // Add this handler
   const handleBookingClick = () => {
     if (!user) {
-      // Not logged in - redirect to login with return URL
       router.push(`/login?redirect=/listings/${listingId}/book`);
       return;
     }
 
     if (listing && user.id === listing.ownerId) {
-      // Trying to book own listing
       toast.error("You cannot book your own listing");
       return;
     }
 
-    // All good - proceed to booking
     router.push(`/listings/${listingId}/book`);
   };
 
@@ -111,7 +107,7 @@ export default function PublicListingPage() {
           <div className="aspect-square bg-gray-100 rounded-lg mb-4 overflow-hidden">
             {images[selectedImage]?.url ? (
               <img 
-                src={images[selectedImage].url} 
+                src={images[selectedImage].url!} 
                 alt={listing.title}
                 className="w-full h-full object-cover"
               />
@@ -177,7 +173,7 @@ export default function PublicListingPage() {
                 <span className="text-muted-foreground"> / day</span>
               </div>
 
-              {/* Book button - UPDATED */}
+              {/* Book button */}
               <Button 
                 className="w-full mb-4" 
                 size="lg"
@@ -223,7 +219,7 @@ export default function PublicListingPage() {
         </div>
       </div>
 
-      {/* Tabs section (unchanged) */}
+      {/* Tabs section */}
       <div className="mt-8">
         <Tabs defaultValue="description">
           <TabsList>
@@ -245,6 +241,10 @@ export default function PublicListingPage() {
             <Card>
               <CardContent className="p-6">
                 <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Category</p>
+                    <p className="font-medium">{listing.categoryId}</p>
+                  </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Condition</p>
                     <p className="font-medium">{listing.condition}</p>

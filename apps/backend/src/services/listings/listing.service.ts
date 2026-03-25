@@ -3,171 +3,217 @@ import { CreateListingDto } from '../../dto/listings/create-listing.dto';
 import { UpdateListingDto } from '../../dto/listings/update-listing.dto';
 import { ListingQueryDto } from '../../dto/listings/listing-query.dto';
 
-// In-memory store for development
-const listingStore = new Map();
-
 export class ListingService {
   async createListing(ownerId: string, data: CreateListingDto) {
-    const listing = {
-      id: Date.now().toString(),
-      ownerId,
-      ...data,
-      status: 'ACTIVE',
-      views: 0,
-      saves: 0,
-      bookingsCount: 0,
-      averageRating: 0,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      images: [],
-    };
-
-    // Store in memory
-    if (!listingStore.has(ownerId)) {
-      listingStore.set(ownerId, []);
-    }
-    listingStore.get(ownerId).push(listing);
-
+    const listing = await prisma.listing.create({
+      data: {
+        ownerId,
+        categoryId: data.categoryId,
+        title: data.title,
+        slug: data.title.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now(),
+        description: data.description,
+        shortDescription: data.description.substring(0, 100),
+        pricePerDay: data.pricePerDay,
+        pricePerWeek: data.pricePerWeek,
+        pricePerMonth: data.pricePerMonth,
+        currency: data.currency,
+        minimumRentalDays: data.minimumRentalDays,
+        maximumRentalDays: data.maximumRentalDays,
+        locationRegion: data.region,
+        locationCity: data.city,
+        locationSubcity: data.subcity,
+        locationWoreda: data.woreda,
+        locationKebele: data.kebele,
+        locationFormatted: `${data.city}, ${data.region}, Ethiopia`,
+        isExactLocation: false,
+        condition: data.condition as any,
+        brand: data.brand,
+        model: data.model,
+        yearOfManufacture: data.yearOfManufacture,
+        specifications: {},
+        availabilityType: 'CALENDAR' as any,
+        advanceNoticeHours: 24,
+        sameDayBooking: false,
+        instantBooking: false,
+        minTrustLevel: data.minTrustLevel as any,
+        requiresGuarantors: data.requiresGuarantor ? 1 : 0,
+        requiresIdVerification: data.requiresIdVerification,
+        requiresDeposit: data.requiresDeposit,
+        deliveryAvailable: data.deliveryAvailable,
+        deliveryFee: data.deliveryFee,
+        pickupRequired: data.pickupRequired,
+        rules: data.rules || [],
+        cancellationPolicy: data.cancellationPolicy as any,
+        status: 'ACTIVE' as any,
+        publishedAt: new Date(),
+      }
+    });
     return listing;
   }
 
   async getListingById(listingId: string) {
-    // Search through all listings
-    for (const [ownerId, listings] of listingStore.entries()) {
-      const found = listings.find((l: any) => l.id === listingId);
-      if (found) return found;
-    }
-    return null;
+    return prisma.listing.findUnique({
+      where: { id: listingId },
+      include: {
+        listingImages: true,  // ← Changed from 'images' to 'listingImages'
+        owner: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+            trustLevel: true,
+          }
+        }
+      }
+    });
   }
 
   async updateListing(listingId: string, ownerId: string, data: UpdateListingDto) {
-    const listings = listingStore.get(ownerId) || [];
-    const index = listings.findIndex((l: any) => l.id === listingId);
-
-    if (index === -1) {
-      throw new Error('Listing not found');
-    }
-
-    listings[index] = {
-      ...listings[index],
-      ...data,
-      updatedAt: new Date(),
-    };
-
-    return listings[index];
+    return prisma.listing.update({
+      where: { id: listingId, ownerId },
+      data: {
+        title: data.title,
+        description: data.description,
+        pricePerDay: data.pricePerDay,
+        pricePerWeek: data.pricePerWeek,
+        pricePerMonth: data.pricePerMonth,
+        minimumRentalDays: data.minimumRentalDays,
+        maximumRentalDays: data.maximumRentalDays,
+        locationRegion: data.region,
+        locationCity: data.city,
+        locationSubcity: data.subcity,
+        locationWoreda: data.woreda,
+        locationKebele: data.kebele,
+        condition: data.condition as any,
+        brand: data.brand,
+        model: data.model,
+        yearOfManufacture: data.yearOfManufacture,
+        minTrustLevel: data.minTrustLevel as any,
+        requiresIdVerification: data.requiresIdVerification,
+        requiresDeposit: data.requiresDeposit,
+        deliveryAvailable: data.deliveryAvailable,
+        deliveryFee: data.deliveryFee,
+        pickupRequired: data.pickupRequired,
+        rules: data.rules,
+        cancellationPolicy: data.cancellationPolicy as any,
+      }
+    });
   }
 
   async deleteListing(listingId: string, ownerId: string) {
-    const listings = listingStore.get(ownerId) || [];
-    const filtered = listings.filter((l: any) => l.id !== listingId);
-    listingStore.set(ownerId, filtered);
+    await prisma.listing.delete({
+      where: { id: listingId, ownerId }
+    });
     return { success: true };
   }
 
   async getUserListings(userId: string) {
-    return listingStore.get(userId) || [];
+    return prisma.listing.findMany({
+      where: { ownerId: userId },
+      include: {
+        listingImages: true,  // ← Changed from 'images' to 'listingImages'
+      },
+      orderBy: { createdAt: 'desc' }
+    });
   }
 
   async searchListings(query: ListingQueryDto) {
-    let results: any[] = [];
+    const where: any = {
+      status: 'ACTIVE'
+    };
 
-    // Collect all listings
-    for (const [ownerId, listings] of listingStore.entries()) {
-      results = [...results, ...listings];
-    }
-
-    // Apply filters
     if (query.search) {
-      const searchLower = query.search.toLowerCase();
-      results = results.filter(l => 
-        l.title.toLowerCase().includes(searchLower) ||
-        l.description.toLowerCase().includes(searchLower)
-      );
+      where.OR = [
+        { title: { contains: query.search, mode: 'insensitive' } },
+        { description: { contains: query.search, mode: 'insensitive' } }
+      ];
     }
 
     if (query.region) {
-      results = results.filter(l => l.region === query.region);
+      where.locationRegion = query.region;
     }
 
     if (query.city) {
-      results = results.filter(l => l.city === query.city);
+      where.locationCity = query.city;
     }
 
-    // Price filters - check if they exist before applying
     if (query.minPrice !== undefined) {
-      results = results.filter(l => l.pricePerDay >= (query.minPrice as number));
+      where.pricePerDay = { gte: query.minPrice };
     }
 
     if (query.maxPrice !== undefined) {
-      results = results.filter(l => l.pricePerDay <= (query.maxPrice as number));
+      where.pricePerDay = { ...where.pricePerDay, lte: query.maxPrice };
     }
 
     if (query.condition) {
-      results = results.filter(l => l.condition === query.condition);
+      where.condition = query.condition as any;
     }
 
     if (query.deliveryAvailable !== undefined) {
-      results = results.filter(l => l.deliveryAvailable === query.deliveryAvailable);
+      where.deliveryAvailable = query.deliveryAvailable;
     }
 
-    // Apply sorting
+    let orderBy: any = {};
     if (query.sortBy === 'price') {
-      results.sort((a, b) => 
-        query.sortOrder === 'asc' ? a.pricePerDay - b.pricePerDay : b.pricePerDay - a.pricePerDay
-      );
+      orderBy = { pricePerDay: query.sortOrder === 'asc' ? 'asc' : 'desc' };
     } else if (query.sortBy === 'createdAt') {
-      results.sort((a, b) => 
-        query.sortOrder === 'asc' 
-          ? a.createdAt.getTime() - b.createdAt.getTime()
-          : b.createdAt.getTime() - a.createdAt.getTime()
-      );
+      orderBy = { createdAt: query.sortOrder === 'asc' ? 'asc' : 'desc' };
+    } else {
+      orderBy = { createdAt: 'desc' };
     }
 
-    // Pagination
-    const start = (query.page - 1) * query.limit;
-    const paginatedResults = results.slice(start, start + query.limit);
+    const [items, total] = await Promise.all([
+      prisma.listing.findMany({
+        where,
+        include: {
+          listingImages: true,  // ← Changed from 'images' to 'listingImages'
+          owner: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              trustLevel: true,
+            }
+          }
+        },
+        skip: (query.page - 1) * query.limit,
+        take: query.limit,
+        orderBy,
+      }),
+      prisma.listing.count({ where })
+    ]);
 
     return {
-      items: paginatedResults,
-      total: results.length,
+      items,
+      total,
       page: query.page,
       limit: query.limit,
-      totalPages: Math.ceil(results.length / query.limit),
+      totalPages: Math.ceil(total / query.limit),
     };
   }
 
   async addListingImage(listingId: string, ownerId: string, imageUrl: string) {
-    const listings = listingStore.get(ownerId) || [];
-    const listing = listings.find((l: any) => l.id === listingId);
+    const existingImages = await prisma.listingImage.count({
+      where: { listingId }
+    });
 
-    if (!listing) {
-      throw new Error('Listing not found');
-    }
-
-    if (!listing.images) {
-      listing.images = [];
-    }
-
-    const image = {
-      id: Date.now().toString(),
-      url: imageUrl,
-      isPrimary: listing.images.length === 0,
-      createdAt: new Date(),
-    };
-
-    listing.images.push(image);
-    return image;
+    return prisma.listingImage.create({
+      data: {
+        listingId,
+        url: imageUrl,
+        thumbnailUrl: imageUrl,
+        isPrimary: existingImages === 0,
+        order: existingImages,
+        verified: true,
+      }
+    });
   }
 
   async removeListingImage(listingId: string, ownerId: string, imageId: string) {
-    const listings = listingStore.get(ownerId) || [];
-    const listing = listings.find((l: any) => l.id === listingId);
-
-    if (!listing) {
-      throw new Error('Listing not found');
-    }
-
-    listing.images = listing.images.filter((img: any) => img.id !== imageId);
+    await prisma.listingImage.delete({
+      where: { id: imageId, listingId }
+    });
     return { success: true };
   }
 }

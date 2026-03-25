@@ -9,7 +9,7 @@ const router = Router();
 // Create services
 const jwtService = new JwtService();
 const authService = new AuthService(jwtService, dbConfig.useDatabase);
-const userService = new UserService(); // Add this
+const userService = new UserService(); 
 const authController = new AuthController(authService, userService); // Pass it
 
 router.post('/register', (req, res) => authController.register(req, res));

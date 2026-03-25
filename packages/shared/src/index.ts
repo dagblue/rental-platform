@@ -53,3 +53,65 @@ export const ETHIOPIAN_CONFIG = {
     { date: '2024-12-16', name: 'Eid al-Adha' },
   ],
 } as const;
+
+// Ethiopian Phone Utilities
+export const normalizeEthiopianPhone = (phone: string): string => {
+  // Remove all spaces and special characters
+  let cleaned = phone.replace(/\s+/g, '').replace(/-/g, '');
+  
+  // If already starts with +251, return as is
+  if (cleaned.startsWith('+251')) {
+    return cleaned;
+  }
+  
+  // If starts with 0, replace with +251
+  if (cleaned.startsWith('0')) {
+    return '+251' + cleaned.slice(1);
+  }
+  
+  // If starts with 9 (9 digits), add +251
+  if (cleaned.startsWith('9') && cleaned.length === 9) {
+    return '+251' + cleaned;
+  }
+  
+  // If it's a 9-digit number, add +251
+  if (/^\d{9}$/.test(cleaned)) {
+    return '+251' + cleaned;
+  }
+  
+  // If starts with 251, add +
+  if (cleaned.startsWith('251')) {
+    return '+' + cleaned;
+  }
+  
+  return cleaned;
+};
+
+export const formatPhoneForDisplay = (phone: string): string => {
+  const normalized = normalizeEthiopianPhone(phone);
+  if (normalized.startsWith('+251')) {
+    return '0' + normalized.slice(4);
+  }
+  return phone;
+};
+
+export const isValidEthiopianPhone = (phone: string): boolean => {
+  const normalized = normalizeEthiopianPhone(phone);
+  const regex = /^\+251[0-9]{9}$/;
+  return regex.test(normalized);
+};
+
+export const isEmail = (input: string): boolean => {
+  const emailRegex = /^[^\s@]+@([^\s@]+\.)+[^\s@]+$/;
+  return emailRegex.test(input);
+};
+
+export const isValidIdentifier = (identifier: string): { isValid: boolean; type: 'phone' | 'email' | 'invalid' } => {
+  if (isEmail(identifier)) {
+    return { isValid: true, type: 'email' };
+  }
+  if (isValidEthiopianPhone(identifier)) {
+    return { isValid: true, type: 'phone' };
+  }
+  return { isValid: false, type: 'invalid' };
+};

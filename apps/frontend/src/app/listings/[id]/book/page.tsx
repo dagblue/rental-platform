@@ -11,7 +11,6 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, ChevronLeft } from 'lucide-react';
@@ -22,14 +21,11 @@ import { bookingsApi } from '@/lib/api/bookings';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const bookingSchema = z.object({
-  startDate: z.date({
-    required_error: "Start date is required",
-  }),
-  endDate: z.date({
-    required_error: "End date is required",
-  }),
+  startDate: z.date(),
+  endDate: z.date(),
   message: z.string().optional(),
   agreeToTerms: z.boolean().refine(val => val === true, {
     message: "You must agree to the terms",
@@ -59,7 +55,6 @@ export default function BookingPage() {
   });
 
   useEffect(() => {
-    // Redirect if not logged in
     if (!authLoading && !user) {
       router.push(`/login?redirect=/listings/${listingId}/book`);
       return;
