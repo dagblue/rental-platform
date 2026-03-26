@@ -3,12 +3,8 @@ import { AuthResponse, LoginCredentials, RegisterCredentials } from '@/types/use
 
 export const authApi = {
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
-    // Map phone to identifier for the backend
-    const payload = {
-      identifier: credentials.phone,  // ← Map phone to identifier
-      password: credentials.password,
-    };
-    const response = await apiClient.post('/auth/login', payload);
+    // credentials now has identifier directly
+    const response = await apiClient.post('/auth/login', credentials);
     if (response.data.success && typeof window !== 'undefined') {
       localStorage.setItem('auth_token', response.data.data.tokens.access_token);
     }

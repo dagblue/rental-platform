@@ -3,12 +3,11 @@ import { AuthService } from '@rental-platform/auth';
 import { UserService } from '../../services/users/user.service';
 import { loginDto, LoginDto } from '../../dto/auth/login.dto';
 import { registerDto, RegisterDto } from '../../dto/auth/register.dto';
-import { EthiopianLanguage } from '@rental-platform/shared';
 
 export class AuthController {
   constructor(
     private authService: AuthService,
-    private userService: UserService // Add this
+    private userService: UserService
   ) {}
 
   async register(req: Request, res: Response) {
@@ -21,7 +20,6 @@ export class AuthController {
         firstName: validatedData.firstName,
         lastName: validatedData.lastName,
         password: validatedData.password,
-        preferredLanguage: EthiopianLanguage.AMHARIC,
         acceptTerms: validatedData.agreeToTerms,
       };
 
@@ -34,7 +32,6 @@ export class AuthController {
         });
       }
 
-      // Sync the user with UserService
       if (result.user) {
         this.userService.syncUser(result.user);
       }
@@ -63,10 +60,7 @@ export class AuthController {
 
   async login(req: Request, res: Response) {
     try {
-      console.log('📝 Login request body:', req.body);
-      
       const validatedData: LoginDto = loginDto.parse(req.body);
-      console.log('✅ Validated data:', validatedData);
 
       const result = await this.authService.login(
         validatedData.identifier,
@@ -74,8 +68,6 @@ export class AuthController {
         validatedData.deviceId
       );
 
-      console.log('📊 Login result:', result.success);
-      
       if (!result.success) {
         return res.status(401).json({
           success: false,
@@ -83,12 +75,124 @@ export class AuthController {
         });
       }
 
-      // ... rest
+      if (result.user) {
+        this.userService.syncUser(result.user);
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Login successful',
+        data: {
+          user: result.user,
+          tokens: result.tokens,
+        },
+      });
     } catch (error) {
-      console.error('Login error:', error);
-      return res.status(401).json({
+      if (error instanceof Error) {
+        return res.status(401).json({
+          success: false,
+          error: error.message,
+        });
+      }
+      return res.status(500).json({
         success: false,
-        error: error instanceof Error ? error.message : 'Login failed',
+        error: 'Internal server error',
       });
     }
-  }}
+  }
+
+  async verifyPhone(req: Request, res: Response) {
+    try {
+      const { phone, code } = req.body;
+
+      if (!phone || !code) {
+        return res.status(400).json({
+          success: false,
+          error: 'Phone and code are required',
+        });
+      }
+
+      const isValid = await this.authService.verifyPhone(phone, code);
+
+      if (isValid) {
+        return res.status(200).json({
+          success: true,
+          message: 'Phone verified successfully',
+        });
+      } else {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid verification code',
+        });
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        return res.status(400).json({
+          success: false,
+          error: error.message,
+        });
+      }
+      return res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+      });
+    }
+  }
+
+  async refreshToken(req: Request, res: Response) {
+    try {
+      const { refreshToken } = req.body;
+
+      if (!refreshToken) {
+        return res.status(400).json({
+          success: false,
+          error: 'Refresh token is required',
+        });
+      }
+
+      const result = await this.authService.refreshToken(refreshToken);
+
+      if (!result) {
+        return res.status(401).json({
+          success: false,
+          error: 'Invalid refresh token',
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          token: result.access_token,
+        },
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+      });
+    }
+  }
+
+  async getProfile(req: Request, res: Response) {
+    try {
+      const user = (req as any).user;
+
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          error: 'Not authenticated',
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: user,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+      });
+    }
+  }
+}

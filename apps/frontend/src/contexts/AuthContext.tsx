@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { authApi } from '@/lib/api/auth';
 import { User } from '@/types/user.types';
@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (phone: string, password: string) => Promise<void>;
+  login: (identifier: string, password: string) => Promise<void>;
   register: (data: any) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
@@ -38,39 +38,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           localStorage.removeItem('auth_token');
         }
       }
-      setIsLoading(false); 
+      setIsLoading(false);
     };
 
     initializeAuth();
   }, []);
 
-  const fetchProfile = async () => {
+  const login = async (identifier: string, password: string) => {
     try {
-      const response = await authApi.getProfile();
+      const response = await authApi.login({ identifier, password });
       if (response.success) {
         setUser(response.data.user);
+        toast.success('Logged in successfully');
+        router.push('/');
       }
-    } catch (error) {
-      console.error('Failed to fetch profile:', error);
-      localStorage.removeItem('auth_token');
-    } finally {
-      setIsLoading(false);
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Login failed');
+      throw error;
     }
   };
-
-const login = async (phone: string, password: string) => {
-  try {
-    const response = await authApi.login({ phone, password });
-    if (response.success) {
-      setUser(response.data.user);
-      toast.success('Logged in successfully');
-      router.push('/');
-    }
-  } catch (error: any) {
-    toast.error(error.response?.data?.error || 'Login failed');
-    throw error;
-  }
-};
 
   const register = async (data: any) => {
     try {

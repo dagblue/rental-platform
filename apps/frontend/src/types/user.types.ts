@@ -38,7 +38,7 @@ export interface AuthResponse {
 }
 
 export interface LoginCredentials {
-  phone: string;
+  identifier: string; // ← Changed from phone to identifier
   password: string;
 }
 

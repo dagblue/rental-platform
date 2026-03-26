@@ -6,12 +6,19 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 
 export default function LoginPage() {
-  const [identifier, setIdentifier] = useState('');  // Changed from phone
+  const [identifier, setIdentifier] = useState(''); // ← Changed from phone to identifier
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
@@ -22,7 +29,6 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      // Note: Your AuthContext.login will need to be updated to accept identifier
       await login(identifier, password);
     } catch (error) {
       // Error handled in AuthContext
@@ -66,11 +72,7 @@ export default function LoginPage() {
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
-            <Button 
-              type="submit" 
-              className="w-full h-11 text-base"
-              disabled={isLoading}
-            >
+            <Button type="submit" className="w-full h-11 text-base" disabled={isLoading}>
               {isLoading ? 'Logging in...' : 'Login'}
             </Button>
             <p className="text-sm text-muted-foreground">
