@@ -4,17 +4,14 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { messagesApi, Conversation, Message } from '@/lib/api/messages';
 import { useAuth } from '@/contexts/AuthContext';
-import { Send, ChevronLeft, Trash2, MoreVertical } from 'lucide-react';
+import { Send, ChevronLeft, MessageSquare } from 'lucide-react';
 
 export default function MessagesPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -70,13 +67,8 @@ export default function MessagesPage() {
   const markAsRead = async (conversationId: string) => {
     try {
       await messagesApi.markAsRead(conversationId);
-      // Update unread count in conversations list
-      setConversations(prev => 
-        prev.map(conv => 
-          conv.id === conversationId 
-            ? { ...conv, unreadCount: 0 }
-            : conv
-        )
+      setConversations((prev) =>
+        prev.map((conv) => (conv.id === conversationId ? { ...conv, unreadCount: 0 } : conv))
       );
     } catch (error) {
       console.error('Failed to mark as read');
@@ -86,28 +78,29 @@ export default function MessagesPage() {
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation) return;
 
+    // Get the receiver ID (the other participant)
+    const otherParticipant = selectedConversation.participants.find((p) => p.id !== user?.id);
+    if (!otherParticipant) {
+      toast.error('Could not find recipient');
+      return;
+    }
+
     setIsSending(true);
     try {
       const response = await messagesApi.sendMessage({
-        conversationId: selectedConversation.id,
+        receiverId: otherParticipant.id,
         content: newMessage,
       });
 
       if (response.success) {
-        setMessages(prev => [...prev, response.data]);
+        setMessages((prev) => [...prev, response.data]);
         setNewMessage('');
-        
-        // Update conversation list with new last message
-        setConversations(prev => 
-          prev.map(conv => 
-            conv.id === selectedConversation.id
-              ? { ...conv, lastMessage: response.data, updatedAt: new Date().toISOString() }
-              : conv
-          ).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-        );
+
+        // Refresh conversations to update last message
+        fetchConversations();
       }
-    } catch (error) {
-      toast.error('Failed to send message');
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to send message');
     } finally {
       setIsSending(false);
     }
@@ -125,7 +118,7 @@ export default function MessagesPage() {
   };
 
   const getOtherParticipant = (conversation: Conversation) => {
-    return conversation.participants.find(p => p.id !== user?.id);
+    return conversation.participants.find((p) => p.id !== user?.id);
   };
 
   const formatTime = (date: string) => {
@@ -137,7 +130,7 @@ export default function MessagesPage() {
       <div className="flex h-[calc(100vh-4rem)]">
         <div className="w-80 border-r p-4">
           <Skeleton className="h-12 w-full mb-4" />
-          {[1, 2, 3, 4].map((i) => (
+          {[1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-20 w-full mb-2" />
           ))}
         </div>
@@ -151,22 +144,33 @@ export default function MessagesPage() {
   return (
     <div className="flex h-[calc(100vh-4rem)] bg-white">
       {/* Conversations List */}
-      <div className={`${
-        showMobileList ? 'flex' : 'hidden'
-      } md:flex w-full md:w-80 flex-col border-r absolute md:relative bg-white z-10 h-full`}>
+      <div
+        className={`${
+          showMobileList ? 'flex' : 'hidden'
+        } md:flex w-full md:w-80 flex-col border-r absolute md:relative bg-white z-10 h-full`}
+      >
         <div className="p-4 border-b">
           <h2 className="text-xl font-bold">Messages</h2>
+          <p className="text-sm text-muted-foreground">
+            Chat with renters and owners about your bookings
+          </p>
         </div>
+
         <div className="flex-1 overflow-y-auto">
           {conversations.length === 0 ? (
             <div className="p-4 text-center text-muted-foreground">
-              No conversations yet
+              <MessageSquare className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+              <p>No messages yet</p>
+              <p className="text-sm mt-1">Messages will appear when you have bookings</p>
+              <Button variant="link" className="mt-4" onClick={() => router.push('/search')}>
+                Browse items to rent
+              </Button>
             </div>
           ) : (
             conversations.map((conversation) => {
               const other = getOtherParticipant(conversation);
               if (!other) return null;
-              
+
               return (
                 <button
                   key={conversation.id}
@@ -174,13 +178,14 @@ export default function MessagesPage() {
                     setSelectedConversation(conversation);
                     setShowMobileList(false);
                   }}
-                  className={`w-full p-4 flex items-start gap-3 hover:bg-gray-50 transition-colors ${
+                  className={`w-full p-4 flex items-start gap-3 hover:bg-gray-50 transition-colors border-b ${
                     selectedConversation?.id === conversation.id ? 'bg-gray-50' : ''
                   }`}
                 >
                   <Avatar className="h-10 w-10">
                     <AvatarFallback>
-                      {other.firstName?.[0]}{other.lastName?.[0]}
+                      {other.firstName?.[0]}
+                      {other.lastName?.[0]}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
@@ -209,9 +214,7 @@ export default function MessagesPage() {
       </div>
 
       {/* Messages Area */}
-      <div className={`${
-        !showMobileList ? 'flex' : 'hidden'
-      } md:flex flex-1 flex-col h-full`}>
+      <div className={`${!showMobileList ? 'flex' : 'hidden'} md:flex flex-1 flex-col h-full`}>
         {selectedConversation ? (
           <>
             {/* Chat Header */}
@@ -231,73 +234,56 @@ export default function MessagesPage() {
                     <>
                       <Avatar className="h-8 w-8">
                         <AvatarFallback>
-                          {other.firstName?.[0]}{other.lastName?.[0]}
+                          {other.firstName?.[0]}
+                          {other.lastName?.[0]}
                         </AvatarFallback>
                       </Avatar>
                       <div>
                         <h3 className="font-medium">
                           {other.firstName} {other.lastName}
                         </h3>
-                        <p className="text-xs text-muted-foreground">
-                          Conversation started {formatTime(selectedConversation.createdAt)}
-                        </p>
                       </div>
                     </>
                   ) : null;
                 })()}
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={async () => {
-                  if (confirm('Delete this conversation?')) {
-                    try {
-                      await messagesApi.deleteConversation(selectedConversation.id);
-                      setConversations(prev => 
-                        prev.filter(c => c.id !== selectedConversation.id)
-                      );
-                      setSelectedConversation(null);
-                      setShowMobileList(true);
-                      toast.success('Conversation deleted');
-                    } catch (error) {
-                      toast.error('Failed to delete conversation');
-                    }
-                  }
-                }}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
             </div>
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {messages.map((message) => {
-                const isOwn = message.senderId === user?.id;
-                return (
-                  <div
-                    key={message.id}
-                    className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
-                  >
+              {messages.length === 0 ? (
+                <div className="text-center text-muted-foreground py-12">
+                  <MessageSquare className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                  <p>No messages yet</p>
+                  <p className="text-sm">Send a message to start the conversation</p>
+                </div>
+              ) : (
+                messages.map((message) => {
+                  const isOwn = message.senderId === user?.id;
+                  return (
                     <div
-                      className={`max-w-[70%] rounded-lg p-3 ${
-                        isOwn
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-gray-100'
-                      }`}
+                      key={message.id}
+                      className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
                     >
-                      <p className="text-sm">{message.content}</p>
-                      <p className={`text-xs mt-1 ${
-                        isOwn ? 'text-primary-foreground/70' : 'text-muted-foreground'
-                      }`}>
-                        {formatTime(message.createdAt)}
-                        {message.read && isOwn && (
-                          <span className="ml-2">✓ Read</span>
-                        )}
-                      </p>
+                      <div
+                        className={`max-w-[70%] rounded-lg p-3 ${
+                          isOwn ? 'bg-primary text-primary-foreground' : 'bg-gray-100'
+                        }`}
+                      >
+                        <p className="text-sm">{message.content}</p>
+                        <p
+                          className={`text-xs mt-1 ${
+                            isOwn ? 'text-primary-foreground/70' : 'text-muted-foreground'
+                          }`}
+                        >
+                          {formatTime(message.createdAt)}
+                          {message.read && isOwn && <span className="ml-2">✓ Read</span>}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
               <div ref={messagesEndRef} />
             </div>
 
@@ -307,7 +293,9 @@ export default function MessagesPage() {
                 <Textarea
                   placeholder="Type your message..."
                   value={newMessage}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNewMessage(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                    setNewMessage(e.target.value)
+                  }
                   onKeyDown={handleKeyPress}
                   className="min-h-[60px] max-h-[120px]"
                 />
@@ -323,7 +311,10 @@ export default function MessagesPage() {
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
-            Select a conversation to start messaging
+            <div className="text-center">
+              <MessageSquare className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+              <p>Select a conversation to start messaging</p>
+            </div>
           </div>
         )}
       </div>
