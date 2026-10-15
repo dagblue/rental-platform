@@ -17,7 +17,6 @@ prisma.$use(hashPasswordMiddleware);
 
 export * from '@prisma/client';
 export { PrismaClient };
-export { Prisma } from './client';
 
 export const connectDatabase = async (): Promise<void> => {
   try {
