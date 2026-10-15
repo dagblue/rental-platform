@@ -32,6 +32,15 @@ export interface CreateListingData {
   pickupRequired: boolean;
 }
 
+export interface ListingOwnerSummary {
+  id: string;
+  firstName?: string;
+  lastName?: string;
+  trustLevel?: string;
+  averageRating?: number;
+  reviewCount?: number;
+}
+
 export interface Listing {
   id: string;
   ownerId: string;
@@ -43,7 +52,7 @@ export interface Listing {
   currency: string;
   minimumRentalDays: number;
   maximumRentalDays?: number | null;
-  categoryId: string; 
+  categoryId: string;
   region: string;
   city: string;
   subcity?: string | null;
@@ -67,6 +76,7 @@ export interface Listing {
   images: ListingImage[];
   createdAt: string;
   updatedAt: string;
+  owner?: ListingOwnerSummary;
 }
 
 export interface ListingImage {

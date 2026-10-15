@@ -5,445 +5,371 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { listingsApi } from '@/lib/api/listings';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Camera, Upload, X } from 'lucide-react';
 
-const formSchema = z.object({
-  title: z.string().min(5, 'Title must be at least 5 characters').max(100),
-  description: z.string().min(20, 'Description must be at least 20 characters').max(2000),
-  categoryId: z.string().min(1, 'Category is required'),
-  pricePerDay: z.number().min(1, 'Price must be greater than 0'),
-  pricePerWeek: z.number().optional(),
-  pricePerMonth: z.number().optional(),
-  currency: z.enum(['ETB', 'USD']).default('ETB'),
-  minimumRentalDays: z.number().min(1).default(1),
-  maximumRentalDays: z.number().optional(),
-  region: z.string().min(1, 'Region is required'),
-  city: z.string().min(1, 'City is required'),
-  subcity: z.string().optional(),
-  woreda: z.string().min(1, 'Woreda is required'),
-  kebele: z.string().optional(),
-  condition: z.enum(['NEW', 'LIKE_NEW', 'GOOD', 'FAIR', 'POOR']),
-  brand: z.string().optional(),
-  model: z.string().optional(),
-  yearOfManufacture: z.number().min(1900).max(new Date().getFullYear()).optional(),
-  rules: z.array(z.string()).optional(),
-  cancellationPolicy: z.enum(['FLEXIBLE', 'MODERATE', 'STRICT']).default('MODERATE'),
-  minTrustLevel: z.enum(['NEW', 'BASIC', 'VERIFIED', 'TRUSTED']).default('BASIC'),
-  requiresGuarantor: z.boolean().default(false),
-  requiresIdVerification: z.boolean().default(false),
-  requiresDeposit: z.boolean().default(false),
-  depositAmount: z.number().optional(),
-  deliveryAvailable: z.boolean().default(false),
-  deliveryFee: z.number().optional(),
-  pickupRequired: z.boolean().default(true),
+const schema = z.object({
+  title:                  z.string().min(5, 'At least 5 characters'),
+  description:            z.string().min(20, 'At least 20 characters'),
+  categoryId:             z.string().min(1, 'Required'),
+  condition:              z.enum(['NEW','LIKE_NEW','GOOD','FAIR','POOR']),
+  pricePerDay:            z.coerce.number().min(1, 'Required'),
+  minimumRentalDays:      z.coerce.number().min(1).default(1),
+  region:                 z.string().min(1, 'Required'),
+  city:                   z.string().min(1, 'Required'),
+  subcity:                z.string().optional(),
+  woreda:                 z.string().optional(),
+  brand:                  z.string().optional(),
+  model:                  z.string().optional(),
+  yearOfManufacture:      z.coerce.number().optional(),
+  cancellationPolicy:     z.enum(['FLEXIBLE','MODERATE','STRICT']),
+  requiresGuarantor:      z.boolean().default(false),
+  requiresIdVerification: z.boolean().default(true),
+  requiresDeposit:        z.boolean().default(false),
+  deliveryAvailable:      z.boolean().default(false),
+  currency:               z.string().default('ETB'),
+  pickupRequired:         z.boolean().default(true),
+  minTrustLevel:          z.string().default('BASIC'),
 });
 
-type FormValues = z.infer<typeof formSchema>;
+type FormValues = z.infer<typeof schema>;
+
+const STEPS = ['Basics & Photos', 'Location & Specs', 'Policies & Finalize'];
+
+const CATEGORIES = ['cameras','electronics','vehicles','furniture','tools','sports','books','clothing','other'];
+const CONDITIONS  = [{ v: 'NEW', l: 'Brand New' }, { v: 'LIKE_NEW', l: 'Like New' }, { v: 'GOOD', l: 'Good' }, { v: 'FAIR', l: 'Fair' }, { v: 'POOR', l: 'Poor' }];
+const REGIONS     = ['ADDIS_ABABA','OROMIA','AMHARA','TIGRAY','SIDAMA','AFAR','SOMALI','BENISHANGUL_GUMUZ','GAMBELA','HARARI','DIRE_DAWA','SOUTHERN','SOUTH_WEST'];
+const POLICIES    = [{ v: 'FLEXIBLE', l: 'Flexible (1 day notice)' }, { v: 'MODERATE', l: 'Moderate (3 days notice)' }, { v: 'STRICT', l: 'Strict (7 days notice)' }];
 
 export default function CreateListingPage() {
-  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const [step, setStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [createdId, setCreatedId] = useState<string | null>(null);
+  const [images, setImages] = useState<File[]>([]);
+  const [uploadingImages, setUploadingImages] = useState(false);
 
- const form = useForm<FormValues>({
-  resolver: zodResolver(formSchema),
-  defaultValues: {
-    title: '',
-    description: '',
-    categoryId: '',
-    pricePerDay: 0,
-    pricePerWeek: undefined,
-    pricePerMonth: undefined,
-    maximumRentalDays: undefined,          
-    currency: 'ETB',
-    minimumRentalDays: 1,     
-    region: '',
-    city: '',
-    subcity: '',
-    woreda: '',
-    kebele: '',
-    condition: 'GOOD',
-    brand: '',
-    model: '',
-    yearOfManufacture: 1995,   
-    rules: [],
-    cancellationPolicy: 'MODERATE',
-    minTrustLevel: 'BASIC',
-    requiresGuarantor: false,
-    requiresIdVerification: false,
-    requiresDeposit: false,
-    depositAmount: 0,          
-    deliveryAvailable: false,
-    deliveryFee: 0,            
-    pickupRequired: true,
-  },
-});
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      currency: 'ETB', pickupRequired: true, minTrustLevel: 'BASIC',
+      cancellationPolicy: 'MODERATE', condition: 'GOOD',
+      requiresGuarantor: false, requiresIdVerification: true,
+      requiresDeposit: false, deliveryAvailable: false, minimumRentalDays: 1,
+    },
+  });
+
+  const watchFields = watch();
+
+  const handleImageAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    setImages(prev => [...prev, ...files].slice(0, 5));
+  };
+  const removeImage = (i: number) => setImages(prev => prev.filter((_, idx) => idx !== i));
 
   const onSubmit = async (data: FormValues) => {
-    setIsLoading(true);
+    setIsSubmitting(true);
     try {
-      const response = await listingsApi.createListing(data);
-      if (response.success) {
-        toast.success('Listing created successfully');
-        router.push(`/dashboard/listings/success?id=${response.data.id}`);
+      const res = await listingsApi.createListing({
+        ...data,
+        rules: [],
+        depositAmount: undefined,
+        deliveryFee: undefined,
+        pricePerWeek: undefined,
+        pricePerMonth: undefined,
+        maximumRentalDays: undefined,
+      });
+      if (res.success) {
+        const id = res.data.id;
+        setCreatedId(id);
+        // Upload images if any
+        if (images.length > 0) {
+          setUploadingImages(true);
+          await Promise.allSettled(images.map(f => listingsApi.uploadImage(id, f)));
+          setUploadingImages(false);
+        }
+        toast.success('Listing created successfully!');
+        router.push(`/dashboard/listings/success?id=${id}`);
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to create listing');
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
+  const err = (field: keyof FormValues) =>
+    errors[field]?.message ? (
+      <p className="text-xs text-red-500 mt-1">{errors[field]?.message as string}</p>
+    ) : null;
+
+  const inputCls = "w-full h-10 px-3 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary focus:bg-white transition-all";
+  const selectCls = `${inputCls} cursor-pointer`;
+  const checkboxRow = (id: string, label: string, field: keyof FormValues, desc?: string) => (
+    <label htmlFor={id} className="flex items-start gap-3 cursor-pointer group">
+      <input
+        type="checkbox"
+        id={id}
+        checked={!!watch(field)}
+        onChange={e => setValue(field, e.target.checked as any)}
+        className="mt-0.5 w-4 h-4 rounded text-primary focus:ring-primary cursor-pointer"
+      />
+      <div>
+        <p className="text-sm font-medium text-slate-700 group-hover:text-slate-900">{label}</p>
+        {desc && <p className="text-xs text-slate-400">{desc}</p>}
+      </div>
+    </label>
+  );
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={() => router.back()}>
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          Back
-        </Button>
-        <h1 className="text-3xl font-bold">Create New Listing</h1>
+    <div className="max-w-2xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => step > 1 ? setStep(s => s - 1) : router.back()}
+          className="p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-600"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </button>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Create New Listing</h1>
+          <p className="text-slate-500 text-sm">
+            Step {step} of {STEPS.length}: <span className="font-semibold text-slate-700">{STEPS[step - 1]}</span>
+          </p>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Listing Details</CardTitle>
-          <CardDescription>Provide information about your item for rent</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="title"
-                  render={({ field }) => (
-                    <FormItem className="col-span-2">
-                      <FormLabel>Title</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g. Professional Camera Sony A7III" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+      {/* Progress */}
+      <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+        <div
+          className="bg-primary h-full rounded-full transition-all duration-300"
+          style={{ width: `${(step / STEPS.length) * 100}%` }}
+        />
+      </div>
 
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem className="col-span-2">
-                      <FormLabel>Description</FormLabel>
-                      <FormControl>
-                        <Textarea 
-                          placeholder="Describe your item, condition, features, etc."
-                          className="min-h-[100px]"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+      {/* Step indicators */}
+      <div className="flex items-center justify-between">
+        {STEPS.map((label, idx) => {
+          const n = idx + 1;
+          const done = n < step;
+          const active = n === step;
+          return (
+            <div key={n} className="flex items-center gap-2">
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                done ? 'bg-primary text-white' : active ? 'bg-primary/10 text-primary border-2 border-primary' : 'bg-slate-100 text-slate-400'
+              }`}>
+                {done ? <Check className="w-3.5 h-3.5" /> : n}
+              </div>
+              <span className={`text-xs font-medium hidden sm:block ${active ? 'text-slate-900' : 'text-slate-400'}`}>{label}</span>
+              {idx < STEPS.length - 1 && <div className="flex-1 h-px bg-slate-200 mx-2 hidden sm:block w-8" />}
+            </div>
+          );
+        })}
+      </div>
 
-                <FormField
-                  control={form.control}
-                  name="categoryId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Category</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select category" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="cameras">Cameras</SelectItem>
-                          <SelectItem value="cars">Cars</SelectItem>
-                          <SelectItem value="electronics">Electronics</SelectItem>
-                          <SelectItem value="furniture">Furniture</SelectItem>
-                          <SelectItem value="tools">Tools</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+      {/* Form */}
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <div className="bg-white rounded-xl border p-6 space-y-5">
 
-                <FormField
-                  control={form.control}
-                  name="condition"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Condition</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select condition" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="NEW">New</SelectItem>
-                          <SelectItem value="LIKE_NEW">Like New</SelectItem>
-                          <SelectItem value="GOOD">Good</SelectItem>
-                          <SelectItem value="FAIR">Fair</SelectItem>
-                          <SelectItem value="POOR">Poor</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="pricePerDay"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Price per Day (ETB)</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          {...field}
-                          value={field.value || ''}
-                          onChange={e => {
-                            const value = e.target.value === '' ? 0 : parseFloat(e.target.value);
-                            field.onChange(value);}}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="minimumRentalDays"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Minimum Rental Days</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          {...field}
-                          value={field.value || ''}
-                          onChange={e => {
-                            const value = e.target.value === '' ? 0 : parseFloat(e.target.value);
-                            field.onChange(value);}}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+          {/* ── STEP 1 ── */}
+          {step === 1 && (
+            <div className="space-y-5 animate-fade-in">
+              <div>
+                <label className="text-sm font-semibold text-slate-700 block mb-1.5">Listing Title *</label>
+                <input className={inputCls} placeholder="e.g. Professional Camera Sony A7III" {...register('title')} />
+                {err('title')}
               </div>
 
-              <div className="border-t pt-4">
-                <h3 className="text-lg font-medium mb-4">Location</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="region"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Region</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select region" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="ADDIS_ABABA">Addis Ababa</SelectItem>
-                            <SelectItem value="OROMIA">Oromia</SelectItem>
-                            <SelectItem value="AMHARA">Amhara</SelectItem>
-                            <SelectItem value="TIGRAY">Tigray</SelectItem>
-                            <SelectItem value="SIDAMA">Sidama</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+              <div>
+                <label className="text-sm font-semibold text-slate-700 block mb-1.5">Description *</label>
+                <textarea
+                  className={`${inputCls} h-28 py-2.5 resize-none`}
+                  placeholder="Describe your item, its features, what's included..."
+                  {...register('description')}
+                />
+                {err('description')}
+              </div>
 
-                  <FormField
-                    control={form.control}
-                    name="city"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>City</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g. Addis Ababa" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-semibold text-slate-700 block mb-1.5">Category *</label>
+                  <select className={selectCls} {...register('categoryId')}>
+                    <option value="">Select category</option>
+                    {CATEGORIES.map(c => (
+                      <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
+                    ))}
+                  </select>
+                  {err('categoryId')}
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-700 block mb-1.5">Condition *</label>
+                  <select className={selectCls} {...register('condition')}>
+                    {CONDITIONS.map(c => <option key={c.v} value={c.v}>{c.l}</option>)}
+                  </select>
+                  {err('condition')}
+                </div>
+              </div>
 
-                  <FormField
-                    control={form.control}
-                    name="subcity"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Subcity</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g. Bole" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-semibold text-slate-700 block mb-1.5">Price per Day (ETB) *</label>
+                  <input type="number" min="1" className={inputCls} placeholder="500" {...register('pricePerDay')} />
+                  {err('pricePerDay')}
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-700 block mb-1.5">Min Rental Days</label>
+                  <input type="number" min="1" className={inputCls} {...register('minimumRentalDays')} />
+                </div>
+              </div>
 
-                  <FormField
-                    control={form.control}
-                    name="woreda"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Woreda</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g. 03" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+              {/* Photos */}
+              <div>
+                <label className="text-sm font-semibold text-slate-700 block mb-1.5">
+                  Photos <span className="text-slate-400 font-normal">({images.length}/5)</span>
+                </label>
+                <div className="grid grid-cols-5 gap-3">
+                  {images.map((file, i) => (
+                    <div key={i} className="aspect-square rounded-lg overflow-hidden relative bg-slate-100 group">
+                      <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => removeImage(i)}
+                        className="absolute top-1 right-1 w-5 h-5 bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                  {images.length < 5 && (
+                    <label className="aspect-square border-2 border-dashed border-slate-200 rounded-lg flex flex-col items-center justify-center text-slate-400 cursor-pointer hover:bg-slate-50 hover:border-primary/40 transition-colors">
+                      <Camera className="w-5 h-5 mb-1" />
+                      <span className="text-[10px] font-medium">Add</span>
+                      <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageAdd} />
+                    </label>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-400 mt-2">Add up to 5 clear photos. First photo is the cover.</p>
+              </div>
+            </div>
+          )}
+
+          {/* ── STEP 2 ── */}
+          {step === 2 && (
+            <div className="space-y-5 animate-fade-in">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-semibold text-slate-700 block mb-1.5">Region *</label>
+                  <select className={selectCls} {...register('region')}>
+                    <option value="">Select region</option>
+                    {REGIONS.map(r => (
+                      <option key={r} value={r}>{r.replace(/_/g, ' ')}</option>
+                    ))}
+                  </select>
+                  {err('region')}
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-700 block mb-1.5">City *</label>
+                  <input className={inputCls} placeholder="e.g. Addis Ababa" {...register('city')} />
+                  {err('city')}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-semibold text-slate-700 block mb-1.5">Subcity</label>
+                  <input className={inputCls} placeholder="e.g. Bole" {...register('subcity')} />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-700 block mb-1.5">Woreda</label>
+                  <input className={inputCls} placeholder="e.g. 03" {...register('woreda')} />
                 </div>
               </div>
 
               <div className="border-t pt-4">
-                <h3 className="text-lg font-medium mb-4">Policies & Requirements</h3>
-                <div className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="cancellationPolicy"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Cancellation Policy</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select policy" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="FLEXIBLE">Flexible</SelectItem>
-                            <SelectItem value="MODERATE">Moderate</SelectItem>
-                            <SelectItem value="STRICT">Strict</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="requiresGuarantor"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <div className="space-y-1 leading-none">
-                            <FormLabel>Requires Guarantor</FormLabel>
-                            <FormDescription>
-                              Renter needs a guarantor
-                            </FormDescription>
-                          </div>
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="requiresIdVerification"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <div className="space-y-1 leading-none">
-                            <FormLabel>Requires ID Verification</FormLabel>
-                            <FormDescription>
-                              Renter must verify ID
-                            </FormDescription>
-                          </div>
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="requiresDeposit"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <div className="space-y-1 leading-none">
-                            <FormLabel>Requires Deposit</FormLabel>
-                            <FormDescription>
-                              Security deposit required
-                            </FormDescription>
-                          </div>
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="deliveryAvailable"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <div className="space-y-1 leading-none">
-                            <FormLabel>Delivery Available</FormLabel>
-                            <FormDescription>
-                              Offer delivery service
-                            </FormDescription>
-                          </div>
-                        </FormItem>
-                      )}
-                    />
+                <h3 className="text-sm font-semibold text-slate-700 mb-4">Technical Details <span className="text-slate-400 font-normal">(optional)</span></h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-xs text-slate-500 block mb-1.5">Brand</label>
+                    <input className={inputCls} placeholder="Sony" {...register('brand')} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 block mb-1.5">Model</label>
+                    <input className={inputCls} placeholder="A7III" {...register('model')} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 block mb-1.5">Year</label>
+                    <input type="number" className={inputCls} placeholder="2022" {...register('yearOfManufacture')} />
                   </div>
                 </div>
               </div>
+            </div>
+          )}
 
-              <CardFooter className="px-0 flex justify-end gap-4">
-                <Button variant="outline" type="button" onClick={() => router.back()}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? 'Creating...' : 'Create Listing'}
-                </Button>
-              </CardFooter>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
+          {/* ── STEP 3 ── */}
+          {step === 3 && (
+            <div className="space-y-5 animate-fade-in">
+              <div>
+                <label className="text-sm font-semibold text-slate-700 block mb-1.5">Cancellation Policy *</label>
+                <select className={selectCls} {...register('cancellationPolicy')}>
+                  {POLICIES.map(p => <option key={p.v} value={p.v}>{p.l}</option>)}
+                </select>
+              </div>
+
+              <div className="border-t pt-4 space-y-4">
+                <h3 className="text-sm font-semibold text-slate-700">Rental Requirements</h3>
+                {checkboxRow('r-guarantor', 'Requires a Physical Guarantor', 'requiresGuarantor', 'Renter must provide a guarantor')}
+                {checkboxRow('r-id', 'Requires ID Verification', 'requiresIdVerification', 'Renter must verify their identity')}
+                {checkboxRow('r-deposit', 'Requires Security Deposit', 'requiresDeposit', 'Refundable deposit on return')}
+                {checkboxRow('r-delivery', 'Delivery Available', 'deliveryAvailable', 'You can deliver to the renter')}
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <p className="text-xs text-amber-800 leading-relaxed">
+                  By listing your item, you agree to our Terms of Service and Rental Policies.
+                  Make sure your item description is accurate to avoid disputes.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Navigation */}
+        <div className="flex items-center justify-between pt-4">
+          <button
+            type="button"
+            onClick={() => step > 1 ? setStep(s => s - 1) : router.back()}
+            className="px-5 py-2.5 text-sm font-semibold border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+          >
+            {step === 1 ? 'Cancel' : 'Previous'}
+          </button>
+
+          {step < STEPS.length ? (
+            <button
+              type="button"
+              onClick={() => setStep(s => s + 1)}
+              className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white font-bold text-sm px-5 py-2.5 rounded-lg transition-colors"
+            >
+              Next Step <ArrowRight className="w-4 h-4" />
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white font-bold text-sm px-5 py-2.5 rounded-lg transition-colors disabled:opacity-60"
+            >
+              {isSubmitting ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  {uploadingImages ? 'Uploading photos…' : 'Creating…'}
+                </>
+              ) : (
+                <><Check className="w-4 h-4" /> Create Listing</>
+              )}
+            </button>
+          )}
+        </div>
+      </form>
     </div>
   );
 }

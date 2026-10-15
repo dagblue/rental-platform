@@ -10,8 +10,14 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (identifier: string, password: string) => Promise<void>;
-  register: (data: any) => Promise<void>;
-  logout: () => void;
+  register: (data: {
+    phone: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    agreeToTerms: boolean;
+  }) => Promise<void>;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
 }
 
@@ -24,21 +30,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     const initializeAuth = async () => {
-      const token = localStorage.getItem('auth_token');
-      if (token) {
-        try {
-          const response = await authApi.getProfile();
-          if (response.success) {
-            setUser(response.data.user);
-          } else {
-            localStorage.removeItem('auth_token');
-          }
-        } catch (error) {
-          console.error('Auth error:', error);
-          localStorage.removeItem('auth_token');
+      try {
+        const response = await authApi.getProfile();
+        if (response.success && response.data?.user) {
+          setUser(response.data.user);
+        } else {
+          setUser(null);
         }
+      } catch {
+        setUser(null);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     initializeAuth();
@@ -47,32 +50,41 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const login = async (identifier: string, password: string) => {
     try {
       const response = await authApi.login({ identifier, password });
-      if (response.success) {
+      if (response.success && response.data?.user) {
         setUser(response.data.user);
         toast.success('Logged in successfully');
-        router.push('/');
+        router.push('/dashboard');
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Login failed');
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } } };
+      toast.error(err.response?.data?.error || 'Login failed');
       throw error;
     }
   };
 
-  const register = async (data: any) => {
+  const register = async (data: {
+    phone: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    agreeToTerms: boolean;
+  }) => {
     try {
       const response = await authApi.register(data);
-      if (response.success) {
-        toast.success('Registration successful! Please login.');
-        router.push('/login');
+      if (response.success && response.data?.user) {
+        setUser(response.data.user);
+        toast.success('Welcome! Your account is ready.');
+        router.push('/dashboard');
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Registration failed');
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } } };
+      toast.error(err.response?.data?.error || 'Registration failed');
       throw error;
     }
   };
 
-  const logout = () => {
-    authApi.logout();
+  const logout = async () => {
+    await authApi.logout();
     setUser(null);
     toast.success('Logged out successfully');
     router.push('/login');

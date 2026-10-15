@@ -1,5 +1,19 @@
 import { env } from './env';
 
+const extraOrigins =
+  env.API_CORS_ORIGINS?.split(',')
+    .map((o) => o.trim())
+    .filter(Boolean) ?? [];
+
+const defaultDevOrigins = ['http://localhost:3000', 'http://localhost:5173'];
+
+const corsOrigins =
+  env.NODE_ENV === 'production'
+    ? extraOrigins.length > 0
+      ? extraOrigins
+      : ['https://your-frontend.com']
+    : [...defaultDevOrigins, ...extraOrigins];
+
 export const appConfig = {
   // Server
   port: parseInt(env.PORT, 10),
@@ -10,10 +24,7 @@ export const appConfig = {
 
   // CORS
   cors: {
-    origin:
-      env.NODE_ENV === 'production'
-        ? ['https://your-frontend.com']
-        : ['http://localhost:3000', 'http://localhost:5173'],
+    origin: corsOrigins,
     credentials: true,
   },
 

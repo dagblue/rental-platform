@@ -29,25 +29,34 @@ export interface TrustData {
 }
 
 export const profileApi = {
-  // Get profile data
   getProfile: async (): Promise<{ success: boolean; data: ProfileData }> => {
-    const response = await apiClient.get('/users/profile');
-    return response.data;
+    const response = await apiClient.get<{ success: boolean; data: { user: ProfileData } }>(
+      '/users/profile'
+    );
+    const body = response.data;
+    if (body.success && body.data?.user) {
+      return { success: true, data: body.data.user };
+    }
+    return { success: false, data: {} as ProfileData };
   },
 
-  // Update profile
   updateProfile: async (data: Partial<ProfileData>): Promise<{ success: boolean; data: ProfileData }> => {
-    const response = await apiClient.put('/users/profile', data);
-    return response.data;
+    const response = await apiClient.put<{ success: boolean; data: { user: ProfileData } }>(
+      '/users/profile',
+      data
+    );
+    const body = response.data;
+    if (body.success && body.data?.user) {
+      return { success: true, data: body.data.user };
+    }
+    return { success: false, data: {} as ProfileData };
   },
 
-  // Get trust data
   getTrustData: async (): Promise<{ success: boolean; data: TrustData }> => {
     const response = await apiClient.get('/users/trust');
     return response.data;
   },
 
-  // Upload profile picture
   uploadProfilePicture: async (file: File): Promise<{ success: boolean; data: { url: string } }> => {
     const formData = new FormData();
     formData.append('picture', file);
@@ -59,31 +68,30 @@ export const profileApi = {
     return response.data;
   },
 
-  // Request ID verification
   requestIdVerification: async (data: {
     idNumber: string;
     idType: string;
     documentFront: string;
     documentBack?: string;
-  }): Promise<{ success: boolean; data: any }> => {
+  }): Promise<{ success: boolean; data: unknown }> => {
     const response = await apiClient.post('/users/verify-id', data);
     return response.data;
   },
 
-  // Get verification status
-  getVerificationStatus: async (): Promise<{ success: boolean; data: any[] }> => {
+  getVerificationStatus: async (): Promise<{ success: boolean; data: unknown[] }> => {
     const response = await apiClient.get('/users/verification-status');
     return response.data;
   },
 
-  // Add guarantor
-  addGuarantor: async (data: { guarantorPhone: string; relationship: string }): Promise<{ success: boolean; data: any }> => {
+  addGuarantor: async (data: {
+    guarantorPhone: string;
+    relationship: string;
+  }): Promise<{ success: boolean; data: unknown }> => {
     const response = await apiClient.post('/users/guarantors', data);
     return response.data;
   },
 
-  // Get guarantors
-  getGuarantors: async (): Promise<{ success: boolean; data: any[] }> => {
+  getGuarantors: async (): Promise<{ success: boolean; data: unknown[] }> => {
     const response = await apiClient.get('/users/guarantors');
     return response.data;
   },

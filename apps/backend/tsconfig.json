@@ -18,7 +18,8 @@
     "paths": {
       "@/*": ["src/*"],
       "@shared/*": ["../../packages/shared/src/*"],
-      "@database/*": ["../../packages/database/src/*"]
+      "@database/*": ["../../packages/database/src/*"],
+      "@rental-platform/auth/services": ["../../packages/auth/dist/services/index.d.ts"]
     }
   },
   "include": ["src/**/*"],

@@ -7,304 +7,356 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Star, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import { reviewsApi, Review } from '@/lib/api/reviews';
 import { formatDistanceToNow } from 'date-fns';
+import { useAuth } from '@/contexts/AuthContext';
+
+function StarRating({ rating }: { rating: number }) {
+  return (
+    <div className="flex gap-0.5">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <Star
+          key={star}
+          className={`h-3.5 w-3.5 ${
+            star <= rating
+              ? 'fill-amber-400 text-amber-400'
+              : 'text-muted-foreground/30'
+          }`}
+        />
+      ))}
+    </div>
+  );
+}
 
 export default function ReviewsPage() {
+  const { user } = useAuth();
   const [reviews, setReviews] = useState<Review[]>([]);
-  const [stats, setStats] = useState({
-    averageRating: 0,
-    totalReviews: 0,
-    responseRate: 0,
-    helpfulVotes: 0,
-  });
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('received');
+
+  // Respond dialog state
+  const [respondingTo, setRespondingTo] = useState<Review | null>(null);
+  const [responseText, setResponseText] = useState('');
+  const [isSubmittingResponse, setIsSubmittingResponse] = useState(false);
 
   useEffect(() => {
     fetchReviews();
-    fetchStats();
   }, []);
 
   const fetchReviews = async () => {
+    setIsLoading(true);
     try {
-      const response = await reviewsApi.getUserReviews();
-      if (response.success) {
-        setReviews(response.data.items);
-      }
-    } catch (error) {
+      // getUserReviews returns reviews written BY the current user
+      // To get reviews received, we need to fetch by the user's own ID as targetId
+      const [writtenRes, receivedRes] = await Promise.allSettled([
+        reviewsApi.getUserReviews(),
+        user?.id ? reviewsApi.getReviews(user.id) : Promise.resolve(null),
+      ]);
+
+      const written =
+        writtenRes.status === 'fulfilled' && writtenRes.value.success
+          ? writtenRes.value.data.items
+          : [];
+
+      const received =
+        receivedRes.status === 'fulfilled' &&
+        receivedRes.value &&
+        receivedRes.value.success
+          ? receivedRes.value.data.items
+          : [];
+
+      // Merge, deduplicate by id
+      const merged = [...received, ...written.filter((w) => !received.find((r) => r.id === w.id))];
+      setReviews(merged);
+    } catch {
       toast.error('Failed to load reviews');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const fetchStats = async () => {
+  const handleSubmitResponse = async () => {
+    if (!respondingTo || !responseText.trim()) return;
+    setIsSubmittingResponse(true);
     try {
-      // For now, calculate stats from reviews
-      // Later you can have a dedicated stats endpoint
-      const response = await reviewsApi.getUserReviews();
-      if (response.success && response.data.items.length > 0) {
-        const total = response.data.items.reduce((sum, r) => sum + r.rating, 0);
-        const avg = total / response.data.items.length;
-        const helpful = response.data.items.reduce((sum, r) => sum + r.helpful, 0);
-
-        setStats({
-          averageRating: avg,
-          totalReviews: response.data.items.length,
-          responseRate: 95, // Placeholder - calculate from actual responses
-          helpfulVotes: helpful,
-        });
+      const res = await reviewsApi.addResponse(respondingTo.id, responseText.trim());
+      if (res.success) {
+        toast.success('Response posted');
+        setRespondingTo(null);
+        setResponseText('');
+        fetchReviews();
       }
-    } catch (error) {
-      console.error('Failed to load stats');
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to post response');
+    } finally {
+      setIsSubmittingResponse(false);
     }
-  };
-
-  const renderStars = (rating: number) => {
-    return (
-      <div className="flex">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <Star
-            key={star}
-            className={`h-4 w-4 ${
-              star <= rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'
-            }`}
-          />
-        ))}
-      </div>
-    );
   };
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-5 max-w-4xl">
         <Skeleton className="h-8 w-48" />
-        <div className="grid gap-4 md:grid-cols-3">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-32" />
-          ))}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
         </div>
-        <div className="space-y-4">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-48" />
-          ))}
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-36 rounded-xl" />)}
         </div>
       </div>
     );
   }
 
-  const receivedReviews = reviews.filter((r) => r.revieweeId);
-  const givenReviews = reviews.filter((r) => r.reviewerId);
+  // Split: reviews where current user is reviewer = given, where they're the target = received
+  const receivedReviews = reviews.filter(
+    (r) => r.targetId === user?.id || (r.targetType === 'USER' && r.reviewerId !== user?.id)
+  );
+  const givenReviews = reviews.filter((r) => r.reviewerId === user?.id);
   const pendingResponses = receivedReviews.filter((r) => !r.response);
 
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Reviews & Ratings</h1>
-          <p className="text-muted-foreground">Manage your reviews and reputation</p>
+  const avgRating =
+    receivedReviews.length > 0
+      ? receivedReviews.reduce((s, r) => s + r.rating, 0) / receivedReviews.length
+      : 0;
+  const totalHelpful = receivedReviews.reduce((s, r) => s + (r.helpful || 0), 0);
+
+  const ReviewCard = ({ review, isOwn }: { review: Review; isOwn: boolean }) => (
+    <Card className="border-border/60">
+      <CardContent className="p-5">
+        <div className="flex items-start gap-3">
+          <Avatar className="h-9 w-9 shrink-0">
+            <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+              {review.reviewerName?.charAt(0)?.toUpperCase() || 'U'}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-semibold">{review.reviewerName || 'Anonymous'}</span>
+                {review.verified && (
+                  <Badge variant="outline" className="text-[10px] text-green-600 border-green-200 h-4 px-1">
+                    Verified
+                  </Badge>
+                )}
+              </div>
+              <span className="text-xs text-muted-foreground shrink-0">
+                {formatDistanceToNow(new Date(review.createdAt), { addSuffix: true })}
+              </span>
+            </div>
+            <StarRating rating={review.rating} />
+            <p className="text-sm mt-2 mb-3 text-foreground/80 leading-relaxed">
+              {review.comment}
+            </p>
+
+            {/* Response thread */}
+            {review.response && (
+              <div className="mt-3 pl-3 border-l-2 border-primary/30 bg-muted/40 rounded-r-lg p-3">
+                <p className="text-xs font-semibold text-primary mb-1">Your response</p>
+                <p className="text-sm text-foreground/80">{review.response.comment}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {formatDistanceToNow(new Date(review.response.createdAt), { addSuffix: true })}
+                </p>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex items-center gap-3 mt-3">
+              {!isOwn && !review.response && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs px-2"
+                  onClick={() => {
+                    setRespondingTo(review);
+                    setResponseText('');
+                  }}
+                >
+                  <MessageSquare className="h-3.5 w-3.5 mr-1" />
+                  Respond
+                </Button>
+              )}
+              <span className="text-xs text-muted-foreground">
+                {review.helpful} helpful
+              </span>
+            </div>
+          </div>
         </div>
+      </CardContent>
+    </Card>
+  );
+
+  return (
+    <div className="space-y-5 max-w-4xl">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Reviews & Ratings</h1>
+        <p className="text-muted-foreground text-sm mt-0.5">
+          Manage your reputation and respond to reviews
+        </p>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Average Rating</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.averageRating.toFixed(1)}/5</div>
-            <div className="flex mt-1">{renderStars(Math.round(stats.averageRating))}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Reviews</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalReviews}</div>
-            <p className="text-xs text-muted-foreground">Across your listings</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Response Rate</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.responseRate}%</div>
-            <p className="text-xs text-muted-foreground">Responds within 24h</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Helpful Votes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.helpfulVotes}</div>
-            <p className="text-xs text-muted-foreground">Received from users</p>
-          </CardContent>
-        </Card>
+      {/* Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          {
+            label: 'Average Rating',
+            value: avgRating > 0 ? `${avgRating.toFixed(1)} / 5` : '—',
+            sub: <StarRating rating={Math.round(avgRating)} />,
+          },
+          {
+            label: 'Total Reviews',
+            value: receivedReviews.length.toString(),
+            sub: <span className="text-xs text-muted-foreground">Received</span>,
+          },
+          {
+            label: 'Pending Response',
+            value: pendingResponses.length.toString(),
+            sub: <span className="text-xs text-muted-foreground">Awaiting reply</span>,
+          },
+          {
+            label: 'Helpful Votes',
+            value: totalHelpful.toString(),
+            sub: <span className="text-xs text-muted-foreground">Across reviews</span>,
+          },
+        ].map((stat) => (
+          <Card key={stat.label} className="border-border/60">
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground mb-1">{stat.label}</p>
+              <p className="text-xl font-bold mb-1">{stat.value}</p>
+              {stat.sub}
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="received" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="received">Reviews Received ({receivedReviews.length})</TabsTrigger>
-          <TabsTrigger value="given">Reviews Given ({givenReviews.length})</TabsTrigger>
-          <TabsTrigger value="pending">Pending Response ({pendingResponses.length})</TabsTrigger>
+      <Tabs defaultValue="received">
+        <TabsList>
+          <TabsTrigger value="received">
+            Received ({receivedReviews.length})
+          </TabsTrigger>
+          <TabsTrigger value="given">
+            Given ({givenReviews.length})
+          </TabsTrigger>
+          <TabsTrigger value="pending">
+            Pending ({pendingResponses.length})
+          </TabsTrigger>
         </TabsList>
 
-        {/* Reviews Received Tab */}
-        <TabsContent value="received" className="mt-4 space-y-4">
+        <TabsContent value="received" className="mt-4 space-y-3">
           {receivedReviews.length === 0 ? (
-            <Card>
+            <Card className="border-border/60">
               <CardHeader>
-                <CardTitle>No reviews yet</CardTitle>
+                <CardTitle className="text-base">No reviews received yet</CardTitle>
                 <CardDescription>
-                  When users review your listings, they'll appear here
+                  Reviews from renters will appear here after completed bookings
                 </CardDescription>
               </CardHeader>
             </Card>
           ) : (
-            receivedReviews.map((review) => (
-              <Card key={review.id}>
-                <CardContent className="p-6">
-                  <div className="flex justify-between">
-                    <div className="flex gap-4">
-                      <Avatar>
-                        <AvatarFallback>{review.reviewerName?.charAt(0) || 'U'}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold">{review.reviewerName}</h3>
-                          {review.verified && (
-                            <Badge variant="outline" className="text-green-600">
-                              Verified Booking
-                            </Badge>
-                          )}
-                          <span className="text-xs text-muted-foreground">
-                            {formatDistanceToNow(new Date(review.createdAt), { addSuffix: true })}
-                          </span>
-                        </div>
-                        {renderStars(review.rating)}
-                        <p className="text-sm mt-2 mb-3">{review.comment}</p>
-
-                        {review.response ? (
-                          <div className="mt-3 pl-4 border-l-2 bg-gray-50 p-3 rounded">
-                            <p className="text-xs font-medium mb-1">Your response:</p>
-                            <p className="text-sm">{review.response.comment}</p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {formatDistanceToNow(new Date(review.response.createdAt), {
-                                addSuffix: true,
-                              })}
-                            </p>
-                          </div>
-                        ) : (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="mt-2"
-                            onClick={() => {
-                              // Open response dialog
-                              toast.info('Response feature coming soon');
-                            }}
-                          >
-                            <MessageSquare className="h-4 w-4 mr-2" />
-                            Respond
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-1">
-                      <Button variant="ghost" size="icon">
-                        <Star className="h-4 w-4" />
-                      </Button>
-                      <span className="text-sm text-muted-foreground">{review.helpful}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+            receivedReviews.map((r) => (
+              <ReviewCard key={r.id} review={r} isOwn={false} />
             ))
           )}
         </TabsContent>
 
-        {/* Reviews Given Tab */}
-        <TabsContent value="given" className="mt-4 space-y-4">
+        <TabsContent value="given" className="mt-4 space-y-3">
           {givenReviews.length === 0 ? (
-            <Card>
+            <Card className="border-border/60">
               <CardHeader>
-                <CardTitle>No reviews given yet</CardTitle>
+                <CardTitle className="text-base">No reviews given yet</CardTitle>
                 <CardDescription>
-                  After you complete a booking, you can leave a review
+                  After completing a booking you can leave a review
                 </CardDescription>
               </CardHeader>
             </Card>
           ) : (
-            givenReviews.map((review) => (
-              <Card key={review.id}>
-                <CardContent className="p-6">
-                  <div className="flex gap-4">
-                    <Avatar>
-                      <AvatarFallback>{review.revieweeName?.charAt(0) || 'U'}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold">{review.revieweeName}</h3>
-                        <span className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(review.createdAt), { addSuffix: true })}
-                        </span>
-                      </div>
-                      {renderStars(review.rating)}
-                      <p className="text-sm mt-2">{review.comment}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+            givenReviews.map((r) => (
+              <ReviewCard key={r.id} review={r} isOwn={true} />
             ))
           )}
         </TabsContent>
 
-        {/* Pending Response Tab */}
-        <TabsContent value="pending" className="mt-4 space-y-4">
+        <TabsContent value="pending" className="mt-4 space-y-3">
           {pendingResponses.length === 0 ? (
-            <Card>
+            <Card className="border-border/60">
               <CardHeader>
-                <CardTitle>No pending responses</CardTitle>
-                <CardDescription>You've responded to all your reviews</CardDescription>
+                <CardTitle className="text-base">All caught up</CardTitle>
+                <CardDescription>
+                  You've responded to all your reviews
+                </CardDescription>
               </CardHeader>
             </Card>
           ) : (
-            pendingResponses.map((review) => (
-              <Card key={review.id}>
-                <CardContent className="p-6">
-                  <div className="flex justify-between">
-                    <div className="flex gap-4">
-                      <Avatar>
-                        <AvatarFallback>{review.reviewerName?.charAt(0) || 'U'}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <h3 className="font-semibold">{review.reviewerName}</h3>
-                        {renderStars(review.rating)}
-                        <p className="text-sm mt-2">{review.comment}</p>
-                      </div>
-                    </div>
-                    <Button
-                      onClick={() => {
-                        toast.info(`Response to ${review.reviewerName} - coming soon`);
-                      }}
-                    >
-                      Respond Now
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+            pendingResponses.map((r) => (
+              <ReviewCard key={r.id} review={r} isOwn={false} />
             ))
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Respond dialog */}
+      <Dialog
+        open={!!respondingTo}
+        onOpenChange={(open: boolean) => {
+          if (!open) {
+            setRespondingTo(null);
+            setResponseText('');
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Respond to review</DialogTitle>
+            <DialogDescription>
+              Your response will be visible publicly alongside the review.
+            </DialogDescription>
+          </DialogHeader>
+          {respondingTo && (
+            <div className="bg-muted/50 rounded-lg p-3 mb-2">
+              <div className="flex items-center gap-2 mb-1">
+                <StarRating rating={respondingTo.rating} />
+                <span className="text-xs text-muted-foreground">
+                  by {respondingTo.reviewerName}
+                </span>
+              </div>
+              <p className="text-sm text-foreground/80">{respondingTo.comment}</p>
+            </div>
+          )}
+          <Textarea
+            placeholder="Write a professional, helpful response..."
+            value={responseText}
+            onChange={(e) => setResponseText(e.target.value)}
+            className="min-h-[100px]"
+          />
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRespondingTo(null);
+                setResponseText('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmitResponse}
+              disabled={!responseText.trim() || isSubmittingResponse}
+            >
+              {isSubmittingResponse ? 'Posting…' : 'Post response'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

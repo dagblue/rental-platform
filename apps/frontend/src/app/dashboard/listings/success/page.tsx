@@ -30,7 +30,7 @@ export default function ListingSuccessPage() {
         </CardContent>
         <CardFooter className="flex justify-center gap-4">
           {listingId && (
-            <Button variant="outline" onClick={() => router.push(`/dashboard/listings/${listingId}`)}>
+            <Button variant="outline" onClick={() => router.push(`/listings/${listingId}`)}>
               <Eye className="h-4 w-4 mr-2" />
               View Listing
             </Button>

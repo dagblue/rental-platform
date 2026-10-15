@@ -3,6 +3,7 @@ import { IUserService } from '../../services/users/user-service.interface';
 import { updateProfileDto, UpdateProfileDto } from '../../dto/users/update-profile.dto';
 import { verifyIdDto, VerifyIdDto } from '../../dto/users/verify-id.dto';
 import { TrustService } from '../../services/users/trust.service';
+import { formatPublicProfileUser } from '../../utils/public-user';
 
 export class UserController {
   constructor(private userService: IUserService) {} // Use interface
@@ -27,9 +28,16 @@ export class UserController {
         });
       }
 
+      const publicUser = formatPublicProfileUser(user as Record<string, unknown>);
+      if (!publicUser) {
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to serialize profile',
+        });
+      }
       return res.status(200).json({
         success: true,
-        data: user,
+        data: { user: publicUser },
       });
     } catch (error) {
       return res.status(500).json({
@@ -77,12 +85,20 @@ export class UserController {
       }
 
       const validatedData: UpdateProfileDto = updateProfileDto.parse(req.body);
-      const updatedUser = await this.userService.updateProfile(userId, validatedData);
-      
+      await this.userService.updateProfile(userId, validatedData);
+      const fresh = await this.userService.getProfile(userId);
+      const publicUser = formatPublicProfileUser(fresh as Record<string, unknown>);
+      if (!publicUser) {
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to serialize profile',
+        });
+      }
+
       return res.status(200).json({
         success: true,
         message: 'Profile updated successfully',
-        data: updatedUser,
+        data: { user: publicUser },
       });
     } catch (error) {
       if (error instanceof Error) {

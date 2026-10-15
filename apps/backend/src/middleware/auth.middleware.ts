@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { JwtService } from '@rental-platform/auth'; // Use proper named import
+import { JwtService } from '@rental-platform/auth/services';
+import { AUTH_COOKIE } from '../config/cookies';
 
 export interface AuthRequest extends Request {
   user?: any;
@@ -10,17 +11,19 @@ const jwtService = new JwtService();
 export function authenticate() {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
+      const fromCookie = req.cookies?.[AUTH_COOKIE.ACCESS] as string | undefined;
       const authHeader = req.headers.authorization;
+      const fromHeader =
+        authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : undefined;
+      const token = fromCookie || fromHeader;
 
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      if (!token) {
         return res.status(401).json({
           success: false,
           error: 'Authentication required',
           message: 'No authorization token provided',
         });
       }
-
-      const token = authHeader.split(' ')[1];
 
       // Verify token
       const payload = jwtService.verifyAccessToken(token);

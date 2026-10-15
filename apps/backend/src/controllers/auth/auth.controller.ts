@@ -1,13 +1,14 @@
 import { Request, Response } from 'express';
-import { AuthService } from '@rental-platform/auth';
-import { UserService } from '../../services/users/user.service';
+import { AuthService } from '@rental-platform/auth/services';
+import type { IUserService } from '../../services/users/user-service.interface';
 import { loginDto, LoginDto } from '../../dto/auth/login.dto';
 import { registerDto, RegisterDto } from '../../dto/auth/register.dto';
+import { AUTH_COOKIE, clearAuthCookies, setAccessCookie, setAuthCookies } from '../../config/cookies';
 
 export class AuthController {
   constructor(
     private authService: AuthService,
-    private userService: UserService
+    private userService: IUserService
   ) {}
 
   async register(req: Request, res: Response) {
@@ -36,12 +37,15 @@ export class AuthController {
         this.userService.syncUser(result.user);
       }
 
+      if (result.tokens) {
+        setAuthCookies(res, result.tokens);
+      }
+
       return res.status(201).json({
         success: true,
         message: 'Registration successful. Please verify your phone.',
         data: {
           user: result.user,
-          tokens: result.tokens,
         },
       });
     } catch (error) {
@@ -79,12 +83,15 @@ export class AuthController {
         this.userService.syncUser(result.user);
       }
 
+      if (result.tokens) {
+        setAuthCookies(res, result.tokens);
+      }
+
       return res.status(200).json({
         success: true,
         message: 'Login successful',
         data: {
           user: result.user,
-          tokens: result.tokens,
         },
       });
     } catch (error) {
@@ -99,6 +106,14 @@ export class AuthController {
         error: 'Internal server error',
       });
     }
+  }
+
+  async logout(_req: Request, res: Response) {
+    clearAuthCookies(res);
+    return res.status(200).json({
+      success: true,
+      message: 'Logged out',
+    });
   }
 
   async verifyPhone(req: Request, res: Response) {
@@ -141,52 +156,34 @@ export class AuthController {
 
   async refreshToken(req: Request, res: Response) {
     try {
-      const { refreshToken } = req.body;
+      const refresh =
+        (req.cookies?.[AUTH_COOKIE.REFRESH] as string | undefined) ||
+        (typeof req.body?.refreshToken === 'string' ? req.body.refreshToken : undefined);
 
-      if (!refreshToken) {
+      if (!refresh) {
         return res.status(400).json({
           success: false,
           error: 'Refresh token is required',
         });
       }
 
-      const result = await this.authService.refreshToken(refreshToken);
+      const result = await this.authService.refreshToken(refresh);
 
       if (!result) {
+        clearAuthCookies(res);
         return res.status(401).json({
           success: false,
           error: 'Invalid refresh token',
         });
       }
 
+      setAccessCookie(res, result.access_token);
+
       return res.status(200).json({
         success: true,
         data: {
-          token: result.access_token,
+          refreshed: true,
         },
-      });
-    } catch (error) {
-      return res.status(500).json({
-        success: false,
-        error: 'Internal server error',
-      });
-    }
-  }
-
-  async getProfile(req: Request, res: Response) {
-    try {
-      const user = (req as any).user;
-
-      if (!user) {
-        return res.status(401).json({
-          success: false,
-          error: 'Not authenticated',
-        });
-      }
-
-      return res.status(200).json({
-        success: true,
-        data: user,
       });
     } catch (error) {
       return res.status(500).json({

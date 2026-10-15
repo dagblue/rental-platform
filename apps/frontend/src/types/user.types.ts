@@ -14,6 +14,7 @@ export enum TrustLevel {
   TRUSTED = 'TRUSTED',
 }
 
+/** Normalized session user (matches /users/profile `data.user`). */
 export interface User {
   id: string;
   phone: string;
@@ -23,22 +24,33 @@ export interface User {
   role: UserRole;
   trustLevel?: TrustLevel;
   profileImage?: string | null;
+  region?: string;
+  city?: string;
+  subcity?: string;
+  woreda?: string;
+  kebele?: string;
+  houseNumber?: string;
+  occupation?: string;
+  bio?: string;
+}
+
+export interface AuthTokens {
+  access_token: string;
+  refresh_token: string;
 }
 
 export interface AuthResponse {
   success: boolean;
-  message: string;
-  data: {
+  message?: string;
+  data?: {
     user: User;
-    tokens: {
-      access_token: string;
-      refresh_token: string;
-    };
+    tokens?: AuthTokens;
+    refreshed?: boolean;
   };
 }
 
 export interface LoginCredentials {
-  identifier: string; // ← Changed from phone to identifier
+  identifier: string;
   password: string;
 }
 

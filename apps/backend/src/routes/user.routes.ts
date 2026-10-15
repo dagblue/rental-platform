@@ -1,40 +1,23 @@
 import { Router } from 'express';
 import { UserController } from '../controllers/users/user.controller';
-import { UserService as UserServiceMemory } from '../services/users/user.service';
-import { UserServiceDb } from '../services/users/user.service.db'; // Fixed import
+import { UserServiceDb } from '../services/users/user.service.db';
 import { UploadController } from '../controllers/upload/upload.controller';
 import { UploadService } from '../services/upload/upload.service';
 import { authenticate } from '../middleware/auth.middleware';
 import { upload } from '../config/upload/multer.config';
-import { dbConfig } from '../config/database.config';
 
 const router = Router();
 
-// Choose which service to use based on config
-const userService = dbConfig.useDatabase 
-  ? new UserServiceDb()   // Now matches the exported class name
-  : new UserServiceMemory();
-
+const userService = new UserServiceDb();
 const uploadService = new UploadService();
 const userController = new UserController(userService);
 const uploadController = new UploadController(uploadService);
 
-// TEMPORARY DEBUG ROUTE - Add BEFORE authentication
-router.get('/debug/users', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Debug endpoint - user routes are working',
-  });
-});
-
-// All protected routes require authentication
 router.use(authenticate());
 
-// Profile management
 router.get('/profile', (req, res) => userController.getProfile(req, res));
 router.put('/profile', (req, res) => userController.updateProfile(req, res));
 
-// File upload routes
 router.post('/upload/id/:type', upload.single('document'), (req, res) =>
   uploadController.uploadIdDocument(req, res)
 );
@@ -42,16 +25,10 @@ router.post('/upload/profile-picture', upload.single('picture'), (req, res) =>
   uploadController.uploadProfilePicture(req, res)
 );
 
-// Verification
+router.get('/trust', (req, res) => userController.getTrustData(req, res));
 router.post('/verify-id', (req, res) => userController.verifyId(req, res));
 router.get('/verification-status', (req, res) => userController.getVerificationStatus(req, res));
-
-// Guarantors
 router.post('/guarantors', (req, res) => userController.addGuarantor(req, res));
 router.get('/guarantors', (req, res) => userController.getGuarantors(req, res));
 
 export default router;
-
-// Trust & Verification
-router.get('/trust', (req, res) => userController.getTrustData(req, res));
-router.get('/verification-status', (req, res) => userController.getVerificationStatus(req, res));

@@ -2,6 +2,7 @@ import { prisma } from '../../services/database.service';
 import { CreateListingDto } from '../../dto/listings/create-listing.dto';
 import { UpdateListingDto } from '../../dto/listings/update-listing.dto';
 import { ListingQueryDto } from '../../dto/listings/listing-query.dto';
+import { toPublicListing } from '../../utils/listing-serializer';
 
 export class ListingService {
   async createListing(ownerId: string, data: CreateListingDto) {
@@ -52,10 +53,10 @@ export class ListingService {
   }
 
   async getListingById(listingId: string) {
-    return prisma.listing.findUnique({
+    const row = await prisma.listing.findUnique({
       where: { id: listingId },
       include: {
-        listingImages: true,  // ← Changed from 'images' to 'listingImages'
+        listingImages: true,
         owner: {
           select: {
             id: true,
@@ -63,10 +64,13 @@ export class ListingService {
             lastName: true,
             phone: true,
             trustLevel: true,
-          }
-        }
-      }
+            averageRating: true,
+            _count: { select: { reviewsReceived: true } },
+          },
+        },
+      },
     });
+    return row ? toPublicListing(row as unknown as Record<string, unknown>) : null;
   }
 
   async updateListing(listingId: string, ownerId: string, data: UpdateListingDto) {
@@ -109,13 +113,26 @@ export class ListingService {
   }
 
   async getUserListings(userId: string) {
-    return prisma.listing.findMany({
+    const rows = await prisma.listing.findMany({
       where: { ownerId: userId },
       include: {
-        listingImages: true,  // ← Changed from 'images' to 'listingImages'
+        listingImages: true,
+        owner: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            trustLevel: true,
+            averageRating: true,
+            _count: { select: { reviewsReceived: true } },
+          },
+        },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
+    return rows
+      .map((r) => toPublicListing(r as unknown as Record<string, unknown>))
+      .filter(Boolean) as Record<string, unknown>[];
   }
 
   async searchListings(query: ListingQueryDto) {
@@ -174,8 +191,10 @@ export class ListingService {
               firstName: true,
               lastName: true,
               trustLevel: true,
-            }
-          }
+              averageRating: true,
+              _count: { select: { reviewsReceived: true } },
+            },
+          },
         },
         skip: (query.page - 1) * query.limit,
         take: query.limit,
@@ -185,7 +204,9 @@ export class ListingService {
     ]);
 
     return {
-      items,
+      items: items
+        .map((row) => toPublicListing(row as unknown as Record<string, unknown>))
+        .filter(Boolean) as Record<string, unknown>[],
       total,
       page: query.page,
       limit: query.limit,

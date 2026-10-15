@@ -3,11 +3,7 @@ import { AuthResponse, LoginCredentials, RegisterCredentials } from '@/types/use
 
 export const authApi = {
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
-    // credentials now has identifier directly
     const response = await apiClient.post('/auth/login', credentials);
-    if (response.data.success && typeof window !== 'undefined') {
-      localStorage.setItem('auth_token', response.data.data.tokens.access_token);
-    }
     return response.data;
   },
 
@@ -16,9 +12,11 @@ export const authApi = {
     return response.data;
   },
 
-  logout: () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('auth_token');
+  logout: async (): Promise<void> => {
+    try {
+      await apiClient.post('/auth/logout');
+    } catch {
+      /* network errors ignored */
     }
   },
 

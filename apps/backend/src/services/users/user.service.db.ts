@@ -5,6 +5,16 @@ import { IUserService } from './user-service.interface';
 import { dbConfig } from '../../config/database.config';
 import { userStore } from './user.service';
 
+/** Keeps in-memory cache in sync for dev fallbacks (same as UserService.syncUser). */
+export function syncUserToStore(userData: { phone?: unknown }) {
+  const phoneKey =
+    typeof userData.phone === 'object' && userData.phone !== null
+      ? (userData.phone as { formatted?: string; number?: string }).formatted ||
+        (userData.phone as { formatted?: string; number?: string }).number
+      : userData.phone;
+  if (phoneKey) userStore.set(phoneKey as string, userData);
+}
+
 export const TrustLevel = {
   NEW: 'NEW',
   BASIC: 'BASIC',
@@ -15,6 +25,9 @@ export const TrustLevel = {
 export type TrustLevel = typeof TrustLevel[keyof typeof TrustLevel];
 
 export class UserServiceDb implements IUserService {
+  syncUser(userData: { phone?: unknown }) {
+    syncUserToStore(userData);
+  }
 
 async getProfile(userId: string) {
   // Database mode
@@ -175,10 +188,19 @@ async getProfile(userId: string) {
     }
   }
 
-  async addGuarantor(userId: string, guarantorId: string, relationship: string) {
+  /** Resolves guarantor by phone (same contract as in-memory UserService). */
+  async addGuarantor(userId: string, guarantorPhone: string, relationship: string) {
     try {
+      const guarantorUser = await prisma.user.findUnique({
+        where: { phone: guarantorPhone },
+      });
+
+      if (!guarantorUser) {
+        throw new Error('Guarantor not found');
+      }
+
       const existing = await prisma.guarantor.findFirst({
-        where: { userId, guarantorId }
+        where: { userId, guarantorId: guarantorUser.id },
       });
 
       if (existing) {
@@ -188,7 +210,7 @@ async getProfile(userId: string) {
       return await prisma.guarantor.create({
         data: {
           userId,
-          guarantorId,
+          guarantorId: guarantorUser.id,
           relationship,
           status: 'PENDING',
           confirmationCode: Math.random().toString(36).substring(2, 8).toUpperCase(),

@@ -14,6 +14,9 @@ const envSchema = z.object({
   JWT_ACCESS_EXPIRY: z.string().default('15m'),
   JWT_REFRESH_EXPIRY: z.string().default('7d'),
 
+  // CORS — comma-separated origins; merged with localhost defaults in dev
+  API_CORS_ORIGINS: z.string().optional(),
+
   // Ethiopian SMS (mock for now)
   ETHIOPIAN_SMS_API_KEY: z.string().optional(),
   ETHIOPIAN_SMS_SENDER: z.string().default('RentalApp'),
@@ -34,7 +37,7 @@ export function validateEnv() {
     return envSchema.parse(process.env);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      console.error('❌ Environment validation failed:');
+      console.error('Environment validation failed:');
       error.errors.forEach((err) => {
         console.error(`   ${err.path.join('.')}: ${err.message}`);
       });

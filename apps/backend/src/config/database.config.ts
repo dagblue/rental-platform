@@ -1,5 +1,3 @@
-import { tap } from "node:test/reporters";
-
 export const dbConfig = {
   // Toggle to switch between in-memory and database
   useDatabase: true,

@@ -1,33 +1,39 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+const configured = process.env.NEXT_PUBLIC_API_URL?.trim();
+const baseURL =
+  configured && configured.length > 0 ? configured : '/api/v1';
 
 export const apiClient = axios.create({
-  baseURL: API_URL,
+  baseURL,
   headers: {
     'Content-Type': 'application/json',
   },
   withCredentials: true,
 });
 
-// Request interceptor
-apiClient.interceptors.request.use((config) => {
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('auth_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-  }
-  return config;
-});
-
-// Response interceptor
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     if (error.response?.status === 401 && typeof window !== 'undefined') {
-      localStorage.removeItem('auth_token');
-      window.location.href = '/login';
+      const reqUrl = (error.config?.url as string) || '';
+      const skipRedirect =
+        reqUrl.includes('/users/profile') ||
+        reqUrl.includes('/auth/login') ||
+        reqUrl.includes('/auth/register') ||
+        reqUrl.includes('/auth/logout');
+
+      if (!skipRedirect) {
+        try {
+          await apiClient.post('/auth/logout');
+        } catch {
+          /* ignore */
+        }
+        const path = window.location.pathname;
+        if (!path.startsWith('/login') && !path.startsWith('/register')) {
+          window.location.href = '/login';
+        }
+      }
     }
     return Promise.reject(error);
   }
