@@ -17,7 +17,6 @@ We are using a monorepo setup managed by Turborepo and npm workspaces:
 
 ### 1. Clone the repo and install dependencies
 
-```bash
 git clone [https://github.com/your-username/rental-platform.git](https://github.com/your-username/rental-platform.git)
 
 cd rental-platform
