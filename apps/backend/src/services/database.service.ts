@@ -27,7 +27,7 @@ export class DatabaseService {
   public static async disconnect(): Promise<void> {
     if (DatabaseService.instance) {
       await DatabaseService.instance.$disconnect();
-      console.log('í³¤ Database disconnected');
+      console.log('Database disconnected');
     }
   }
 }

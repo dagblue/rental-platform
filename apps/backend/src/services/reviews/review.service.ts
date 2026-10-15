@@ -410,7 +410,7 @@ export class ReviewService {
   private async updateTrustScore(targetId: string, targetType: string) {
     // This will be implemented when we integrate with User Management
     // For now, just log
-    console.log(`��� Updating trust score for ${targetType} ${targetId}`);
+    console.log(`Updating trust score for ${targetType} ${targetId}`);
     
     // In production:
     // 1. Get all reviews for this target
