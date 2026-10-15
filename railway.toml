@@ -1,6 +1,6 @@
 [build]
 builder = "NIXPACKS"
-buildCommand = "npm install && npx tsc -p apps/backend/tsconfig.json"
+buildCommand = "npm install && npx tsc -p packages/shared/tsconfig.json && npx tsc -p packages/validation/tsconfig.json && npx tsc -p packages/auth/tsconfig.json && npx tsc -p packages/database/tsconfig.json && npx tsc -p apps/backend/tsconfig.json"
 
 [deploy]
 startCommand = "node apps/backend/dist/index.js"
