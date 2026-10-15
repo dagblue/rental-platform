@@ -172,43 +172,31 @@ export class AuthService {
 
     async login(identifier: string, password: string, deviceId?: string): Promise<LoginResult> {
     try {
-      console.log('🔐 Login attempt with identifier:', identifier);
-      
       if (this.useDatabase) {
         let user = null;
         
-        // Determine if identifier is email or phone
         if (isEmail(identifier)) {
-          console.log('📧 Login with email:', identifier.toLowerCase());
           user = await prisma.user.findUnique({
             where: { email: identifier.toLowerCase() }
           });
         } else {
-          // Login with phone
           if (!isValidEthiopianPhone(identifier)) {
-            console.log('❌ Invalid Ethiopian phone format:', identifier);
             return { success: false };
           }
           
-          const normalizedPhone = normalizeEthiopianPhone(identifier); // ← Now uses correct function
-          console.log('📱 Login with phone (normalized):', normalizedPhone);
+          const normalizedPhone = normalizeEthiopianPhone(identifier);
           user = await prisma.user.findUnique({
             where: { phone: normalizedPhone }
           });
         }
 
         if (!user) {
-          console.log('❌ User not found for:', identifier);
           return { success: false };
         }
-
-        console.log('✅ User found:', user.id, user.phone);
         
         const isValid = await bcrypt.compare(password, user.passwordHash ?? '');
-        console.log('✅ Password valid:', isValid);
         
         if (!isValid) {
-          console.log('❌ Invalid password');
           return { success: false };
         }
 
@@ -309,9 +297,7 @@ export class AuthService {
       }
       
       if (user) {
-        console.log('🔐 Comparing password with hash:', user.passwordHash);
         const isValid = await bcrypt.compare(password, user.passwordHash ?? '');
-        console.log('🔐 bcrypt.compare result:', isValid);
         if (isValid) {
           return {
             id: user.id,

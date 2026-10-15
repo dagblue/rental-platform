@@ -578,7 +578,6 @@ async function main() {
     console.log('\nTest Credentials:');
     console.log(`   Password for all users: ${PASSWORD}`);
     console.log('   Admin user: +251911111111 / admin@rentalplatform.com');
-    console.log('\n✅ All passwords will be automatically hashed by Prisma middleware!');
     
   } catch (err) {
     console.error('\nSeeding failed:', err);

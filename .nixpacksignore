@@ -1,0 +1,5 @@
+packages/database/src/client/
+packages/*/dist/
+apps/frontend/
+node_modules/
+.next/

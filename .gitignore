@@ -58,6 +58,10 @@ desktop.ini
 packages/database/prisma/*.db
 packages/database/prisma/*.db-journal
 
+# ── Compiled output (packages) ───────────────────
+packages/*/dist/
+apps/backend/dist/
+
 # ── Turbo ────────────────────────────────────────
 .turbo/
 
