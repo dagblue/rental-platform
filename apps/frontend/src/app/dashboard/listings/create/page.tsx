@@ -73,6 +73,9 @@ export default function CreateListingPage() {
     try {
       const res = await listingsApi.createListing({
         ...data,
+        woreda: data.woreda ?? '',
+        subcity: data.subcity ?? '',
+        kebele: undefined,
         rules: [],
         depositAmount: undefined,
         deliveryFee: undefined,
