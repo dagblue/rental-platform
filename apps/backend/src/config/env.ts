@@ -14,7 +14,7 @@ const envSchema = z.object({
   JWT_ACCESS_EXPIRY: z.string().default('15m'),
   JWT_REFRESH_EXPIRY: z.string().default('7d'),
 
-  // CORS — comma-separated origins; merged with localhost defaults in dev
+  // CORS - comma-separated origins; merged with localhost defaults in dev
   API_CORS_ORIGINS: z.string().optional(),
 
   // Ethiopian SMS (mock for now)

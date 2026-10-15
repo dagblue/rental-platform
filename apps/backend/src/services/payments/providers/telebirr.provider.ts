@@ -1,4 +1,4 @@
-import { PaymentProvider, PaymentRequest, PaymentResponse } from './base-provider';
+ï»¿import { PaymentProvider, PaymentRequest, PaymentResponse } from './base-provider';
 
 export class TelebirrProvider implements PaymentProvider {
   private apiKey: string;
@@ -11,7 +11,7 @@ export class TelebirrProvider implements PaymentProvider {
 
   async processPayment(request: PaymentRequest): Promise<PaymentResponse> {
     try {
-      console.log(`í³± Processing Telebirr payment for ${request.amount} ETB to ${request.phoneNumber}`);
+      console.log(`Processing Telebirr payment for ${request.amount} ETB to ${request.phoneNumber}`);
       
       if (!request.phoneNumber?.startsWith('+251')) {
         return {

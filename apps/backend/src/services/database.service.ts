@@ -14,9 +14,9 @@ export class DatabaseService {
       // Connection handling
       DatabaseService.instance
         .$connect()
-        .then(() => console.log('✅ Database connected via @rental-platform/database'))
+        .then(() => console.log('Database connected via @rental-platform/database'))
         .catch((err: Error) => {
-          console.error('❌ Database connection failed:', err);
+          console.error('Database connection failed:', err);
           process.exit(1);
         });
     }

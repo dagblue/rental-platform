@@ -184,7 +184,7 @@ export class ListingService {
       prisma.listing.findMany({
         where,
         include: {
-          listingImages: true,  // ← Changed from 'images' to 'listingImages'
+          listingImages: true,  // Changed from 'images' to 'listingImages'
           owner: {
             select: {
               id: true,

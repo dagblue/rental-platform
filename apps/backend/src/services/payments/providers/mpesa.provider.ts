@@ -1,4 +1,4 @@
-import { PaymentProvider, PaymentRequest, PaymentResponse } from './base-provider';
+ï»¿import { PaymentProvider, PaymentRequest, PaymentResponse } from './base-provider';
 
 export class MpesaProvider implements PaymentProvider {
   private apiKey: string;
@@ -11,7 +11,7 @@ export class MpesaProvider implements PaymentProvider {
 
   async processPayment(request: PaymentRequest): Promise<PaymentResponse> {
     try {
-      console.log(`í³± Processing M-PESA payment for ${request.amount} ETB to ${request.phoneNumber}`);
+      console.log(`Processing M-PESA payment for ${request.amount} ETB to ${request.phoneNumber}`);
       
       // M-PESA also works in Ethiopia with +251 format
       if (!request.phoneNumber?.startsWith('+251')) {

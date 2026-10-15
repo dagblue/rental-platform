@@ -1,4 +1,4 @@
-import { PaymentProvider, PaymentRequest, PaymentResponse } from './base-provider';
+ï»¿import { PaymentProvider, PaymentRequest, PaymentResponse } from './base-provider';
 
 export class CbeBirrProvider implements PaymentProvider {
   private apiKey: string;
@@ -11,7 +11,7 @@ export class CbeBirrProvider implements PaymentProvider {
 
   async processPayment(request: PaymentRequest): Promise<PaymentResponse> {
     try {
-      console.log(`í³± Processing CBE Birr payment for ${request.amount} ETB to ${request.phoneNumber}`);
+      console.log(`Processing CBE Birr payment for ${request.amount} ETB to ${request.phoneNumber}`);
       
       // In production, this would call the actual CBE Birr API
       // For development, we'll simulate a successful payment
