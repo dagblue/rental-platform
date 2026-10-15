@@ -335,7 +335,7 @@ export class AuthService {
         await prisma.user.update({
           where: { phone },
           data: { phoneVerified: true }
-        }).catch(err => console.error('Error updating verification status:', err));
+        }).catch((err: unknown) => console.error('Error updating verification status:', err));
       }
       
       return true;
