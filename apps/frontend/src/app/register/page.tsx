@@ -124,6 +124,13 @@ export default function RegisterPage() {
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+              <ul className="text-xs text-slate-400 mt-1.5 space-y-0.5">
+                <li className={formData.password.length >= 8 ? 'text-green-600' : ''}>8+ characters</li>
+                <li className={/[A-Z]/.test(formData.password) ? 'text-green-600' : ''}>One uppercase letter (A-Z)</li>
+                <li className={/[a-z]/.test(formData.password) ? 'text-green-600' : ''}>One lowercase letter (a-z)</li>
+                <li className={/\d/.test(formData.password) ? 'text-green-600' : ''}>One number (0-9)</li>
+                <li className={/[!@#$%^&*(),.?":{}|<>]/.test(formData.password) ? 'text-green-600' : ''}>One special character (!@#$...)</li>
+              </ul>
             </div>
 
             <div className="flex items-start gap-2.5 pt-1">
@@ -146,7 +153,7 @@ export default function RegisterPage() {
 
             <button
               type="submit"
-              disabled={isLoading || !formData.agreeToTerms}
+              disabled={isLoading || !formData.agreeToTerms || formData.password.length < 8 || !/[A-Z]/.test(formData.password) || !/[a-z]/.test(formData.password) || !/\d/.test(formData.password) || !/[!@#$%^&*(),.?":{}|<>]/.test(formData.password)}
               className="w-full h-11 bg-primary hover:bg-primary/90 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {isLoading ? (
