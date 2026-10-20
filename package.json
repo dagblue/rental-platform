@@ -10,7 +10,8 @@
   ],
   "scripts": {
     "dev": "node --no-deprecation dev.js",
-    "build": "turbo run build",
+    "start": "node apps/backend/dist/index.js",
+    "build": "npx prisma generate --schema packages/database/prisma/schema.prisma && npx tsc -p packages/shared/tsconfig.json && npx tsc -p packages/validation/tsconfig.json && npm run build --workspace=packages/database && npx tsc -p packages/auth/tsconfig.json && npx tsc -p apps/backend/tsconfig.json",
     "lint": "turbo run lint",
     "lint:fix": "turbo run lint:fix",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,css}\" --ignore-path .gitignore",
