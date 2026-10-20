@@ -4,9 +4,9 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.string().default('3000'),
 
-  // Database
-  DATABASE_URL: z.string().url(),
-  SHADOW_DATABASE_URL: z.string().url().optional(),
+  // Database - use min() instead of url() because postgresql:// URLs fail Zod url validation
+  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+  SHADOW_DATABASE_URL: z.string().optional(),
 
   // Auth
   JWT_SECRET: z.string().min(32),

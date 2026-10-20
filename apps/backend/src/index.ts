@@ -21,7 +21,7 @@ import userRoutes from './routes/user.routes';
 
 const app = express();
 
-app.use(helmet());
+app.use(helmet({ crossOriginResourcePolicy: false, contentSecurityPolicy: false }));
 app.use(cors(appConfig.cors));
 app.use(compression());
 app.use(cookieParser());
